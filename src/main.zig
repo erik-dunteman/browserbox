@@ -3,7 +3,13 @@ const assert = @import("std").debug.assert;
 
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
-    const program = try Program.init_from_file(allocator, "asm/bin/all_implemented.bin");
+    const args = try std.process.argsAlloc(allocator);
+    defer std.process.argsFree(allocator, args);
+    if (args.len != 2) {
+        try print("Usage: {any} <program>\n", .{args});
+        return;
+    }
+    const program = try Program.init_from_file(allocator, args[1]);
     defer program.deinit(allocator);
     var platform = Platform.new();
     try platform.run_program(&program);
@@ -93,7 +99,7 @@ const RType = struct {
         return self.op == other.op and self.rd == other.rd and self.rs1 == other.rs1 and self.rs2 == other.rs2;
     }
 
-    pub fn execute(self: *const RType, platform: *Platform) !void {
+    pub inline fn execute(self: *const RType, platform: *Platform) !void {
         try print("\t{s}\tr{d},\tr{d},\tr{d}\n", .{ @tagName(self.op), self.rd, self.rs1, self.rs2 });
         switch (self.op) {
             .add => {
@@ -122,7 +128,25 @@ const RType = struct {
                 const shift: u6 = @intCast(platform.registers[self.rs2] & 0b11_1111);
                 platform.registers[self.rd] = platform.registers[self.rs1] >> shift;
             },
-            else => @panic("unimplemented rtype op in execute"),
+            .sra => {
+                // Requires MSB Extends
+                // Zig handles this automatically on signed types, so type cast to i64
+                // This should be safe since no program would call this without operating on
+                // Two's-compliment signed values
+                const shift: u6 = @intCast(platform.registers[self.rs2] & 0b11_1111);
+                const signed_val: i64 = @bitCast(platform.registers[self.rs1]);
+                platform.registers[self.rd] = @bitCast(signed_val >> shift);
+            },
+            .slt => {
+                // Comparison of twos-compliment signed ints
+                const rs1_signed: i64 = @bitCast(platform.registers[self.rs1]);
+                const rs2_signed: i64 = @bitCast(platform.registers[self.rs2]);
+                platform.registers[self.rd] = if (rs1_signed < rs2_signed) 1 else 0;
+            },
+            .sltu => {
+                // Comparison of unsigned ints
+                platform.registers[self.rd] = if (platform.registers[self.rs1] < platform.registers[self.rs2]) 1 else 0;
+            },
         }
         try print("\tres:\tr{d} = {d}\n", .{ self.rd, platform.registers[self.rd] });
         // All R Type ops increment program counter
@@ -192,13 +216,50 @@ const IType = struct {
         return self.op == other.op and self.rd == other.rd and self.rs1 == other.rs1 and self.imm == other.imm;
     }
 
-    pub fn execute(self: *const IType, platform: *Platform) !void {
+    pub inline fn execute(self: *const IType, platform: *Platform) !void {
         try print("\t{s}\tr{d},\tr{d},\t{d}\n", .{ @tagName(self.op), self.rd, self.rs1, self.imm });
+
+        // Sign-extend the 12-bit immediate to 64 bits for comparisons
+        // Invariant of Risc-V is that all immediates fit as signed
+        const imm_signed: i64 = @as(i64, @as(i12, @bitCast(self.imm)));
+        const imm_zero_extended: u64 = @bitCast(imm_signed);
+
         switch (self.op) {
             .addi => {
-                platform.registers[self.rd] = platform.registers[self.rs1] + self.imm;
+                // Wrapping add
+                platform.registers[self.rd] = platform.registers[self.rs1] +% imm_zero_extended;
             },
-            else => @panic("unknown itype op in execute"),
+            .xori => {
+                platform.registers[self.rd] = platform.registers[self.rs1] ^ imm_zero_extended;
+            },
+            .ori => {
+                platform.registers[self.rd] = platform.registers[self.rs1] | imm_zero_extended;
+            },
+            .andi => {
+                platform.registers[self.rd] = platform.registers[self.rs1] & imm_zero_extended;
+            },
+            .slli => {
+                // Shift amount is masked to 6 bits
+                const shift: u6 = @intCast(self.imm & 0b11_1111);
+                platform.registers[self.rd] = platform.registers[self.rs1] << shift;
+            },
+            .srli => {
+                // Shift amount is masked to 6 bits
+                const shift: u6 = @intCast(self.imm & 0b11_1111);
+                platform.registers[self.rd] = platform.registers[self.rs1] >> shift;
+            },
+            .srai => {
+                const shift: u6 = @intCast(self.imm & 0b11_1111);
+                const signed_val: i64 = @bitCast(platform.registers[self.rs1]);
+                platform.registers[self.rd] = @bitCast(signed_val >> shift);
+            },
+            .slti => {
+                const rs1_signed: i64 = @bitCast(platform.registers[self.rs1]);
+                platform.registers[self.rd] = if (rs1_signed < imm_signed) 1 else 0;
+            },
+            .sltiu => {
+                platform.registers[self.rd] = if (platform.registers[self.rs1] < imm_zero_extended) 1 else 0;
+            },
         }
         try print("\tres:\tr{d} = {d}\n", .{ self.rd, platform.registers[self.rd] });
 
@@ -254,11 +315,15 @@ const Op = union(enum) {
             0b0010011 => { // I-Type
                 return Op{ .itype = try IType.from_word(word) };
             },
-            else => @panic("unknown opcode in op from word"),
+            else => {
+                try print("word: 0b{b:0>32}\n", .{word});
+                try print("opcode: 0b{b:0>7}\n", .{op});
+                @panic("unknown opcode in op from word");
+            },
         }
     }
 
-    pub fn execute(self: *const Op, platform: *Platform) !void {
+    pub inline fn execute(self: *const Op, platform: *Platform) !void {
         switch (self.*) {
             .rtype => |rtype| {
                 try rtype.execute(platform);
