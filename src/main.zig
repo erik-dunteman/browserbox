@@ -3,22 +3,22 @@ const assert = @import("std").debug.assert;
 
 var stdout: std.fs.File = undefined;
 
-const Op_Addi = struct {
-    rd: u5,
-    rs1: u5,
-    imm: u12,
-};
+pub fn main() !void {
+    stdout = std.fs.File.stdout();
+    try print("hello world\n", .{});
 
-const Op_Add = struct {
-    rd: u5,
-    rs1: u5,
-    rs2: u5,
-};
+    // todo add load from file
+    var program = Program{
+        .instructions = .{
+            .{ 0x93, 0x00, 0x50, 0x00 },
+            .{ 0x13, 0x01, 0x30, 0x00 },
+            .{ 0xb3, 0x81, 0x20, 0x00 },
+        },
+        .program_counter = 0,
+    };
 
-const Op = union(enum) {
-    addi: Op_Addi,
-    add: Op_Add,
-};
+    try program.run();
+}
 
 const Program = struct {
     instructions: [3][4]u8,
@@ -38,21 +38,9 @@ const Program = struct {
     }
 };
 
-pub fn main() !void {
-    stdout = std.fs.File.stdout();
-    try print("hello world\n", .{});
-
-    // todo add load from file
-    var program = Program{
-        .instructions = .{
-            .{ 0x93, 0x00, 0x50, 0x00 },
-            .{ 0x13, 0x01, 0x30, 0x00 },
-            .{ 0xb3, 0x81, 0x20, 0x00 },
-        },
-        .program_counter = 0,
-    };
-
-    try program.run();
+fn print(comptime fmt: []const u8, args: anytype) !void {
+    var print_buf: [256]u8 = undefined;
+    try stdout.writeAll(try std.fmt.bufPrint(&print_buf, fmt, args));
 }
 
 fn decode(instruction: [4]u8) !Op {
@@ -71,51 +59,6 @@ fn decode(instruction: [4]u8) !Op {
         else => @panic("unknown opcode"),
     }
 }
-
-fn print(comptime fmt: []const u8, args: anytype) !void {
-    var print_buf: [256]u8 = undefined;
-    try stdout.writeAll(try std.fmt.bufPrint(&print_buf, fmt, args));
-}
-
-// switch can be used to capture the field values of a Tagged union. Modifications to the field values can be done by placing a * before the capture variable name, turning it into a pointer.
-
-// test_switch_tagged_union.zig
-// const expect = @import("std").testing.expect;
-
-// test "switch on tagged union" {
-//     const Point = struct {
-//         x: u8,
-//         y: u8,
-//     };
-//     const Item = union(enum) {
-//         a: u32,
-//         c: Point,
-//         d,
-//         e: u32,
-//     };
-
-//     var a = Item{ .c = Point{ .x = 1, .y = 2 } };
-
-//     // Switching on more complex enums is allowed.
-//     const b = switch (a) {
-//         // A capture group is allowed on a match, and will return the enum
-//         // value matched. If the payload types of both cases are the same
-//         // they can be put into the same switch prong.
-//         Item.a, Item.e => |item| item,
-
-//         // A reference to the matched value can be obtained using `*` syntax.
-//         Item.c => |*item| blk: {
-//             item.*.x += 1;
-//             break :blk 6;
-//         },
-
-//         // No else is required if the types cases was exhaustively handled
-//         Item.d => 8,
-//     };
-
-//     try expect(b == 6);
-//     try expect(a.c.x == 2);
-// }
 
 fn decode_r_type(word: u32) !Op {
     const rd = word >> 7 & 0b11111; // 7:12 (exclusive of idx=12)
@@ -163,3 +106,20 @@ fn decode_i_type(word: u32) !Op {
         else => @panic("unknown funct3"),
     }
 }
+
+const Op = union(enum) {
+    addi: Op_Addi,
+    add: Op_Add,
+};
+
+const Op_Addi = struct {
+    rd: u5,
+    rs1: u5,
+    imm: u12,
+};
+
+const Op_Add = struct {
+    rd: u5,
+    rs1: u5,
+    rs2: u5,
+};
