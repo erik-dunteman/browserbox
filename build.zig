@@ -36,4 +36,19 @@ pub fn build(b: *std.Build) void {
     const run_exe = b.addRunArtifact(native_exe);
     const run_step = b.step("run", "Run the application");
     run_step.dependOn(&run_exe.step);
+
+    // native test
+    const test_exe = b.addTest(.{
+        .name = "wasmutter_test",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = b.graph.host,
+            .optimize = .ReleaseSafe,
+            .imports = &.{},
+        }),
+    });
+
+    const test_run_exe = b.addRunArtifact(test_exe);
+    const test_step = b.step("test", "Run tests");
+    test_step.dependOn(&test_run_exe.step);
 }
