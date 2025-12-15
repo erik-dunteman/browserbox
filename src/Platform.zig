@@ -74,7 +74,7 @@ const MemoryBlock = struct {
         return std.mem.readInt(u32, buffer, .big);
     }
 
-    pub fn ensure_valid_address(self: *MemoryBlock, address: usize, byte_width: usize) !void {
+    pub fn grow_to_fit(self: *MemoryBlock, address: usize, byte_width: usize) !void {
         // ensure we have valid memory for this address
         // add in pagesize increments as needed
         if (address >= self.data.items.len) {
@@ -84,7 +84,7 @@ const MemoryBlock = struct {
     }
 
     pub fn store_byte(self: *MemoryBlock, address: usize, value: u8) !void {
-        try self.ensure_valid_address(address, 1);
+        try self.grow_to_fit(address, 1);
 
         const buffer: [1]u8 = .{value};
         try self.data.replaceRange(self.allocator, address, 1, &buffer);
@@ -92,7 +92,7 @@ const MemoryBlock = struct {
     }
 
     pub fn store_half(self: *MemoryBlock, address: usize, value: u16) !void {
-        try self.ensure_valid_address(address, 2);
+        try self.grow_to_fit(address, 2);
 
         var buffer: [2]u8 = undefined;
         std.mem.writeInt(u16, &buffer, value, .big);
@@ -100,7 +100,7 @@ const MemoryBlock = struct {
     }
 
     pub fn store_word(self: *MemoryBlock, address: usize, value: u32) !void {
-        try self.ensure_valid_address(address, 4);
+        try self.grow_to_fit(address, 4);
 
         var buffer: [4]u8 = undefined;
         std.mem.writeInt(u32, &buffer, value, .big);
