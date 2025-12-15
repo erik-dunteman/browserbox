@@ -367,8 +367,11 @@ pub const Instruction = union(enum) {
         imm: u13,
 
         pub fn execute(self: @This(), platform: *Platform) !void {
-            _ = self;
-            _ = platform;
+            if (platform.registers[self.rs1] == platform.registers[self.rs2]) {
+                platform.program_counter += self.imm;
+            } else {
+                platform.program_counter += 4;
+            }
         }
     },
 
@@ -378,8 +381,11 @@ pub const Instruction = union(enum) {
         imm: u13,
 
         pub fn execute(self: @This(), platform: *Platform) !void {
-            _ = self;
-            _ = platform;
+            if (platform.registers[self.rs1] != platform.registers[self.rs2]) {
+                platform.program_counter += self.imm;
+            } else {
+                platform.program_counter += 4;
+            }
         }
     },
 
@@ -389,8 +395,17 @@ pub const Instruction = union(enum) {
         imm: u13,
 
         pub fn execute(self: @This(), platform: *Platform) !void {
-            _ = self;
-            _ = platform;
+            // Comparison of twos-compliment signed ints
+            const rs1_signed: i64 = @bitCast(platform.registers[self.rs1]);
+            const rs2_signed: i64 = @bitCast(platform.registers[self.rs2]);
+            if (rs1_signed < rs2_signed) {
+                // Sign-extend 13-bit immediate for branch offset
+                const signed_offset: i13 = @bitCast(self.imm);
+                const new_pc = @as(i64, @intCast(platform.program_counter)) + @as(i64, @intCast(signed_offset));
+                platform.program_counter = @intCast(new_pc);
+            } else {
+                platform.program_counter += 4;
+            }
         }
     },
 
@@ -400,8 +415,17 @@ pub const Instruction = union(enum) {
         imm: u13,
 
         pub fn execute(self: @This(), platform: *Platform) !void {
-            _ = self;
-            _ = platform;
+            // Comparison of twos-compliment signed ints
+            const rs1_signed: i64 = @bitCast(platform.registers[self.rs1]);
+            const rs2_signed: i64 = @bitCast(platform.registers[self.rs2]);
+            if (rs1_signed >= rs2_signed) {
+                // Sign-extend 13-bit immediate for branch offset
+                const signed_offset: i13 = @bitCast(self.imm);
+                const new_pc = @as(i64, @intCast(platform.program_counter)) + @as(i64, @intCast(signed_offset));
+                platform.program_counter = @intCast(new_pc);
+            } else {
+                platform.program_counter += 4;
+            }
         }
     },
 
