@@ -250,7 +250,7 @@ const WordFormat = union(enum) {
 test "parse instructions" {
     const TestCase = struct { word: u32, expected: Instruction };
     const test_cases = [_]TestCase{
-        // R-type instructions
+        // ALU Instructions (R-type, opcode 0110011)
         .{ .word = 0x002081b3, .expected = .{ .add = .{ .rd = 3, .rs1 = 1, .rs2 = 2 } } },
         .{ .word = 0x40208433, .expected = .{ .sub = .{ .rd = 8, .rs1 = 1, .rs2 = 2 } } },
         .{ .word = 0x0020c2b3, .expected = .{ .xor = .{ .rd = 5, .rs1 = 1, .rs2 = 2 } } },
@@ -261,7 +261,7 @@ test "parse instructions" {
         .{ .word = 0x40125533, .expected = .{ .sra = .{ .rd = 10, .rs1 = 4, .rs2 = 1 } } },
         .{ .word = 0x0020a233, .expected = .{ .slt = .{ .rd = 4, .rs1 = 1, .rs2 = 2 } } },
         .{ .word = 0x0020b3b3, .expected = .{ .sltu = .{ .rd = 7, .rs1 = 1, .rs2 = 2 } } },
-        // I-type ALU instructions
+        // ALU instructions (I-type, opcode 0010011)
         .{ .word = 0x00500093, .expected = .{ .addi = .{ .rd = 1, .rs1 = 0, .imm = 5 } } },
         .{ .word = 0x00c0c213, .expected = .{ .xori = .{ .rd = 4, .rs1 = 1, .imm = 12 } } },
         .{ .word = 0x0050e413, .expected = .{ .ori = .{ .rd = 8, .rs1 = 1, .imm = 5 } } },
@@ -271,6 +271,32 @@ test "parse instructions" {
         .{ .word = 0x40115693, .expected = .{ .srai = .{ .rd = 13, .rs1 = 2, .shift_amt = 1 } } },
         .{ .word = 0x00a0a213, .expected = .{ .slti = .{ .rd = 4, .rs1 = 1, .imm = 10 } } },
         .{ .word = 0x00a0b493, .expected = .{ .sltiu = .{ .rd = 9, .rs1 = 1, .imm = 10 } } },
+        // Load instructions (I-type, opcode 0000011)
+        .{ .word = 0x00810083, .expected = .{ .lb = .{ .rd = 1, .rs1 = 2, .imm = 8 } } },
+        .{ .word = 0x01019103, .expected = .{ .lh = .{ .rd = 2, .rs1 = 3, .imm = 16 } } },
+        .{ .word = 0x02022183, .expected = .{ .lw = .{ .rd = 3, .rs1 = 4, .imm = 32 } } },
+        .{ .word = 0x0402c203, .expected = .{ .lbu = .{ .rd = 4, .rs1 = 5, .imm = 64 } } },
+        .{ .word = 0x08035283, .expected = .{ .lhu = .{ .rd = 5, .rs1 = 6, .imm = 128 } } },
+        // Store instructions (S-type, opcode 0100011)
+        .{ .word = 0x00208423, .expected = .{ .sb = .{ .rs1 = 1, .rs2 = 2, .imm = 8 } } },
+        .{ .word = 0x00311823, .expected = .{ .sh = .{ .rs1 = 2, .rs2 = 3, .imm = 16 } } },
+        .{ .word = 0x0241a023, .expected = .{ .sw = .{ .rs1 = 3, .rs2 = 4, .imm = 32 } } },
+        // Branch instructions (B-type, opcode 1100011)
+        .{ .word = 0x00208463, .expected = .{ .beq = .{ .rs1 = 1, .rs2 = 2, .imm = 8 } } },
+        .{ .word = 0x00209863, .expected = .{ .bne = .{ .rs1 = 1, .rs2 = 2, .imm = 16 } } },
+        .{ .word = 0x0220c063, .expected = .{ .blt = .{ .rs1 = 1, .rs2 = 2, .imm = 32 } } },
+        .{ .word = 0x0420d063, .expected = .{ .bge = .{ .rs1 = 1, .rs2 = 2, .imm = 64 } } },
+        .{ .word = 0x0820e063, .expected = .{ .bltu = .{ .rs1 = 1, .rs2 = 2, .imm = 128 } } },
+        .{ .word = 0x1020f063, .expected = .{ .bgeu = .{ .rs1 = 1, .rs2 = 2, .imm = 256 } } },
+        // Jump instructions
+        .{ .word = 0x100000ef, .expected = .{ .jal = .{ .rd = 1, .imm = 256 } } }, // J-type, opcode 1101111
+        .{ .word = 0x040100e7, .expected = .{ .jalr = .{ .rd = 1, .rs1 = 2, .imm = 64 } } }, // I-type, opcode 1100111
+        // Upper immediate instructions (U-type)
+        .{ .word = 0x123450b7, .expected = .{ .lui = .{ .rd = 1, .imm = 0x12345 } } }, // opcode 0110111
+        .{ .word = 0xabcde117, .expected = .{ .auipc = .{ .rd = 2, .imm = 0xabcde } } }, // opcode 0010111
+        // Environment instructions (I-type, opcode 1110011)
+        .{ .word = 0x00000073, .expected = .{ .ecall = .{} } },
+        .{ .word = 0x00100073, .expected = .{ .ebreak = .{} } },
     };
 
     for (test_cases) |tc| {
