@@ -26,7 +26,7 @@ pub const Instruction = union(enum) {
         pub fn execute(self: @This(), platform: *Platform) !void {
             // wrapping add
             platform.registers[self.rd] = platform.registers[self.rs1] +% platform.registers[self.rs2];
-            platform.program_counter += 1;
+            platform.program_counter += 4;
         }
     },
 
@@ -38,7 +38,7 @@ pub const Instruction = union(enum) {
         pub fn execute(self: @This(), platform: *Platform) !void {
             // wrapping subtract
             platform.registers[self.rd] = platform.registers[self.rs1] -% platform.registers[self.rs2];
-            platform.program_counter += 1;
+            platform.program_counter += 4;
         }
     },
 
@@ -49,7 +49,7 @@ pub const Instruction = union(enum) {
 
         pub fn execute(self: @This(), platform: *Platform) !void {
             platform.registers[self.rd] = platform.registers[self.rs1] ^ platform.registers[self.rs2];
-            platform.program_counter += 1;
+            platform.program_counter += 4;
         }
     },
 
@@ -60,7 +60,7 @@ pub const Instruction = union(enum) {
 
         pub fn execute(self: @This(), platform: *Platform) !void {
             platform.registers[self.rd] = platform.registers[self.rs1] | platform.registers[self.rs2];
-            platform.program_counter += 1;
+            platform.program_counter += 4;
         }
     },
 
@@ -71,7 +71,7 @@ pub const Instruction = union(enum) {
 
         pub fn execute(self: @This(), platform: *Platform) !void {
             platform.registers[self.rd] = platform.registers[self.rs1] & platform.registers[self.rs2];
-            platform.program_counter += 1;
+            platform.program_counter += 4;
         }
     },
 
@@ -84,7 +84,7 @@ pub const Instruction = union(enum) {
             // zig protects against bit shift_amts that'd violate type casting
             const shift_amt: u6 = @intCast(platform.registers[self.rs2] & 0b11_1111);
             platform.registers[self.rd] = platform.registers[self.rs1] << shift_amt;
-            platform.program_counter += 1;
+            platform.program_counter += 4;
         }
     },
 
@@ -96,7 +96,7 @@ pub const Instruction = union(enum) {
         pub fn execute(self: @This(), platform: *Platform) !void {
             const shift_amt: u6 = @intCast(platform.registers[self.rs2] & 0b11_1111);
             platform.registers[self.rd] = platform.registers[self.rs1] >> shift_amt;
-            platform.program_counter += 1;
+            platform.program_counter += 4;
         }
     },
 
@@ -112,7 +112,7 @@ pub const Instruction = union(enum) {
             const shift_amt: u6 = @intCast(platform.registers[self.rs2] & 0b11_1111);
             const signed_val: i64 = @bitCast(platform.registers[self.rs1]);
             platform.registers[self.rd] = @bitCast(signed_val >> shift_amt);
-            platform.program_counter += 1;
+            platform.program_counter += 4;
         }
     },
 
@@ -126,7 +126,7 @@ pub const Instruction = union(enum) {
             const rs1_signed: i64 = @bitCast(platform.registers[self.rs1]);
             const rs2_signed: i64 = @bitCast(platform.registers[self.rs2]);
             platform.registers[self.rd] = if (rs1_signed < rs2_signed) 1 else 0;
-            platform.program_counter += 1;
+            platform.program_counter += 4;
         }
     },
 
@@ -138,7 +138,7 @@ pub const Instruction = union(enum) {
         pub fn execute(self: @This(), platform: *Platform) !void {
             // Comparison of unsigned ints
             platform.registers[self.rd] = if (platform.registers[self.rs1] < platform.registers[self.rs2]) 1 else 0;
-            platform.program_counter += 1;
+            platform.program_counter += 4;
         }
     },
 
@@ -149,7 +149,7 @@ pub const Instruction = union(enum) {
 
         pub fn execute(self: @This(), platform: *Platform) !void {
             platform.registers[self.rd] = platform.registers[self.rs1] +% self.imm;
-            platform.program_counter += 1;
+            platform.program_counter += 4;
         }
     },
 
@@ -160,7 +160,7 @@ pub const Instruction = union(enum) {
 
         pub fn execute(self: @This(), platform: *Platform) !void {
             platform.registers[self.rd] = platform.registers[self.rs1] ^ self.imm;
-            platform.program_counter += 1;
+            platform.program_counter += 4;
         }
     },
 
@@ -171,7 +171,7 @@ pub const Instruction = union(enum) {
 
         pub fn execute(self: @This(), platform: *Platform) !void {
             platform.registers[self.rd] = platform.registers[self.rs1] | self.imm;
-            platform.program_counter += 1;
+            platform.program_counter += 4;
         }
     },
 
@@ -182,7 +182,7 @@ pub const Instruction = union(enum) {
 
         pub fn execute(self: @This(), platform: *Platform) !void {
             platform.registers[self.rd] = platform.registers[self.rs1] & self.imm;
-            platform.program_counter += 1;
+            platform.program_counter += 4;
         }
     },
 
@@ -194,7 +194,7 @@ pub const Instruction = union(enum) {
         pub fn execute(self: @This(), platform: *Platform) !void {
             // shift amt is precomputed during parse due to imm being partially used for flags
             platform.registers[self.rd] = platform.registers[self.rs1] << self.shift_amt;
-            platform.program_counter += 1;
+            platform.program_counter += 4;
         }
     },
 
@@ -205,7 +205,7 @@ pub const Instruction = union(enum) {
 
         pub fn execute(self: @This(), platform: *Platform) !void {
             platform.registers[self.rd] = platform.registers[self.rs1] >> self.shift_amt;
-            platform.program_counter += 1;
+            platform.program_counter += 4;
         }
     },
 
@@ -218,7 +218,7 @@ pub const Instruction = union(enum) {
             // Requires MSB Extends implementation
             const rs1_signed: i64 = @bitCast(platform.registers[self.rs1]);
             platform.registers[self.rd] = @bitCast(rs1_signed >> self.shift_amt);
-            platform.program_counter += 1;
+            platform.program_counter += 4;
         }
     },
 
@@ -232,7 +232,7 @@ pub const Instruction = union(enum) {
             const rs1_signed: i64 = @bitCast(platform.registers[self.rs1]);
             const imm_signed: i64 = @bitCast(@as(i64, self.imm));
             platform.registers[self.rd] = if (rs1_signed < imm_signed) 1 else 0;
-            platform.program_counter += 1;
+            platform.program_counter += 4;
         }
     },
 
@@ -244,7 +244,7 @@ pub const Instruction = union(enum) {
         pub fn execute(self: @This(), platform: *Platform) !void {
             // Comparison of unsigned ints
             platform.registers[self.rd] = if (platform.registers[self.rs1] < self.imm) 1 else 0;
-            platform.program_counter += 1;
+            platform.program_counter += 4;
         }
     },
 
@@ -261,7 +261,7 @@ pub const Instruction = union(enum) {
             const data_signed: i64 = @intCast(byte_signed);
             // cast back to unsigned to store in register
             platform.registers[self.rd] = @bitCast(data_signed);
-            platform.program_counter += 1;
+            platform.program_counter += 4;
         }
     },
 
@@ -275,7 +275,7 @@ pub const Instruction = union(enum) {
             const half_signed: i16 = @bitCast(platform.memory.load_half(address));
             const data_signed: i64 = @intCast(half_signed);
             platform.registers[self.rd] = @bitCast(data_signed);
-            platform.program_counter += 1;
+            platform.program_counter += 4;
         }
     },
 
@@ -288,7 +288,7 @@ pub const Instruction = union(enum) {
             const address = platform.registers[self.rs1] + self.imm;
             const word: u32 = platform.memory.load_word(address);
             platform.registers[self.rd] = @intCast(word);
-            platform.program_counter += 1;
+            platform.program_counter += 4;
         }
     },
 
@@ -301,7 +301,7 @@ pub const Instruction = union(enum) {
             const address = platform.registers[self.rs1] + self.imm;
             const byte = platform.memory.load_byte(address);
             platform.registers[self.rd] = @intCast(byte); // zero-extends
-            platform.program_counter += 1;
+            platform.program_counter += 4;
         }
     },
 
@@ -314,7 +314,7 @@ pub const Instruction = union(enum) {
             const address = platform.registers[self.rs1] + self.imm;
             const half = platform.memory.load_half(address);
             platform.registers[self.rd] = @intCast(half); // zero-extends
-            platform.program_counter += 1;
+            platform.program_counter += 4;
         }
     },
 
@@ -329,7 +329,7 @@ pub const Instruction = union(enum) {
             const address = platform.registers[self.rs1] + self.imm;
             const to_store: u8 = @intCast(platform.registers[self.rs2] & 0xFF); // take lowest byte
             try platform.memory.store_byte(address, to_store);
-            platform.program_counter += 1;
+            platform.program_counter += 4;
         }
     },
 
@@ -342,7 +342,7 @@ pub const Instruction = union(enum) {
             const address = platform.registers[self.rs1] + self.imm;
             const to_store: u16 = @intCast(platform.registers[self.rs2] & 0xFFFF); // take lowest half
             try platform.memory.store_half(address, to_store);
-            platform.program_counter += 1;
+            platform.program_counter += 4;
         }
     },
 
@@ -355,7 +355,7 @@ pub const Instruction = union(enum) {
             const address = platform.registers[self.rs1] + self.imm;
             const to_store: u32 = @intCast(platform.registers[self.rs2] & 0xFFFFFFFF); // take lowest word
             try platform.memory.store_word(address, to_store);
-            platform.program_counter += 1;
+            platform.program_counter += 4;
         }
     },
 

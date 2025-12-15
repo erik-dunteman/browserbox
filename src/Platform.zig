@@ -28,9 +28,13 @@ pub fn deinit(self: *Self) void {
 }
 
 pub fn run_program(self: *Self, program: *const Program) !void {
-    while (self.program_counter < program.instructions.len) {
+    while (self.program_counter < program.instructions.len * 4) {
         try print("\n", .{});
-        const word = program.instructions[self.program_counter];
+        if (self.program_counter % 4 != 0) {
+            @panic("Program counter is not aligned to 4 bytes");
+        }
+        const pc_address = self.program_counter / 4; // each instruction is 4 bytes
+        const word = program.instructions[pc_address];
         const instruction = parser.parse_word(word);
         try instruction.execute(self);
     }
