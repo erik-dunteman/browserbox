@@ -1,17 +1,16 @@
 const std = @import("std");
 const print = @import("../utils/print.zig").print;
 
+pub const Self = @This();
+
 // for now, make physical memory statically sized
 const PHYSICAL_MEMORY_SIZE = 1024; // 1KB, for now, for debugability
 
-pub const Self = @This();
-
+// Struct attributes
 data: [PHYSICAL_MEMORY_SIZE]u8 = undefined,
 
 pub fn new() Self {
-    return Self{
-        .data = .{0} ** PHYSICAL_MEMORY_SIZE,
-    };
+    return Self{};
 }
 
 pub fn display(self: *Self) !void {
