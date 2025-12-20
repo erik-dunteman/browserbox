@@ -256,7 +256,7 @@ pub const Instruction = union(enum) {
         pub fn execute(self: @This(), platform: *Platform) !void {
             const address = platform.registers[self.rs1] + self.imm;
             // cast first to signed, so widening sign-extends
-            const byte_signed: i8 = @bitCast(platform.memory.load_byte(address));
+            const byte_signed: i8 = @bitCast(platform.memory.load_byte(@intCast(address)));
             // widen to fit into register
             const data_signed: i64 = @intCast(byte_signed);
             // cast back to unsigned to store in register
@@ -272,7 +272,7 @@ pub const Instruction = union(enum) {
 
         pub fn execute(self: @This(), platform: *Platform) !void {
             const address = platform.registers[self.rs1] + self.imm;
-            const half_signed: i16 = @bitCast(platform.memory.load_half(address));
+            const half_signed: i16 = @bitCast(platform.memory.load_half(@intCast(address)));
             const data_signed: i64 = @intCast(half_signed);
             platform.registers[self.rd] = @bitCast(data_signed);
             platform.program_counter += 4;
@@ -286,7 +286,7 @@ pub const Instruction = union(enum) {
 
         pub fn execute(self: @This(), platform: *Platform) !void {
             const address = platform.registers[self.rs1] + self.imm;
-            const word: u32 = platform.memory.load_word(address);
+            const word: u32 = platform.memory.load_word(@intCast(address));
             platform.registers[self.rd] = @intCast(word);
             platform.program_counter += 4;
         }
@@ -299,7 +299,7 @@ pub const Instruction = union(enum) {
 
         pub fn execute(self: @This(), platform: *Platform) !void {
             const address = platform.registers[self.rs1] + self.imm;
-            const byte = platform.memory.load_byte(address);
+            const byte = platform.memory.load_byte(@intCast(address));
             platform.registers[self.rd] = @intCast(byte); // zero-extends
             platform.program_counter += 4;
         }
@@ -312,7 +312,7 @@ pub const Instruction = union(enum) {
 
         pub fn execute(self: @This(), platform: *Platform) !void {
             const address = platform.registers[self.rs1] + self.imm;
-            const half = platform.memory.load_half(address);
+            const half = platform.memory.load_half(@intCast(address));
             platform.registers[self.rd] = @intCast(half); // zero-extends
             platform.program_counter += 4;
         }
@@ -328,7 +328,7 @@ pub const Instruction = union(enum) {
         pub fn execute(self: @This(), platform: *Platform) !void {
             const address = platform.registers[self.rs1] + self.imm;
             const to_store: u8 = @intCast(platform.registers[self.rs2] & 0xFF); // take lowest byte
-            try platform.memory.store_byte(address, to_store);
+            try platform.memory.store_byte(@intCast(address), to_store);
             platform.program_counter += 4;
         }
     },
@@ -341,7 +341,7 @@ pub const Instruction = union(enum) {
         pub fn execute(self: @This(), platform: *Platform) !void {
             const address = platform.registers[self.rs1] + self.imm;
             const to_store: u16 = @intCast(platform.registers[self.rs2] & 0xFFFF); // take lowest half
-            try platform.memory.store_half(address, to_store);
+            try platform.memory.store_half(@intCast(address), to_store);
             platform.program_counter += 4;
         }
     },
@@ -354,7 +354,7 @@ pub const Instruction = union(enum) {
         pub fn execute(self: @This(), platform: *Platform) !void {
             const address = platform.registers[self.rs1] + self.imm;
             const to_store: u32 = @intCast(platform.registers[self.rs2] & 0xFFFFFFFF); // take lowest word
-            try platform.memory.store_word(address, to_store);
+            try platform.memory.store_word(@intCast(address), to_store);
             platform.program_counter += 4;
         }
     },
@@ -474,8 +474,9 @@ pub const Instruction = union(enum) {
         imm: u21,
 
         pub fn execute(self: @This(), platform: *Platform) !void {
-            _ = self;
-            _ = platform;
+            // rd = PC+4; PC += imm
+            platform.registers[self.rd] = platform.program_counter + 4;
+            platform.program_counter += self.imm;
         }
     },
 
@@ -485,8 +486,9 @@ pub const Instruction = union(enum) {
         imm: u12,
 
         pub fn execute(self: @This(), platform: *Platform) !void {
-            _ = self;
-            _ = platform;
+            // rd = PC+4; PC = rs1 + imm
+            platform.registers[self.rd] = platform.program_counter + 4;
+            platform.program_counter = @intCast(platform.registers[self.rs1] + self.imm);
         }
     },
 
@@ -497,8 +499,8 @@ pub const Instruction = union(enum) {
         imm: u20,
 
         pub fn execute(self: @This(), platform: *Platform) !void {
-            _ = self;
-            _ = platform;
+            // rd = imm << 12
+            platform.registers[self.rd] = self.imm << 12;
         }
     },
 
@@ -507,8 +509,8 @@ pub const Instruction = union(enum) {
         imm: u20,
 
         pub fn execute(self: @This(), platform: *Platform) !void {
-            _ = self;
-            _ = platform;
+            // rd = PC + (imm << 12)
+            platform.registers[self.rd] = platform.program_counter + (self.imm << 12);
         }
     },
 

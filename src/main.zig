@@ -3,7 +3,6 @@ const assert = @import("std").debug.assert;
 const parser = @import("parser.zig");
 const print = @import("io.zig").print;
 const Platform = @import("Platform.zig");
-const Program = @import("Program.zig");
 
 test {
     // Reference imported modules to include their tests
@@ -19,11 +18,12 @@ pub fn main() !void {
         return;
     }
     var platform = Platform.new();
-    try platform.init(allocator);
-    defer platform.deinit();
 
-    const program = try Program.init_from_file(allocator, args[1]);
-    defer program.deinit(allocator);
+    const start_address = 0x100; // 256 in decimal
+    const program_buf: []u8 = platform.memory.data[start_address..];
+    var program_file = try std.fs.cwd().openFile(args[1], .{ .mode = .read_only });
+    try program_file.readAll(program_buf);
+    program_file.close();
 
-    try platform.run_program(&program);
+    try platform.run_program();
 }
