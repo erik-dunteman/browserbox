@@ -33,7 +33,7 @@ pub fn new() Self {
 
 pub fn run_program(self: *Self) !void {
     // Program starts at loaded address, loads, parses, executes on hardware
-    while (self.program_counter < self.memory.data.len) {
+    while (self.program_counter < self.program_end_address) {
         // instructions coming from disk are in little endian format
         const word = self.memory.load_word(self.program_counter);
         try print("Loaded word: {x}\n", .{word});
