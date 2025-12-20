@@ -11,9 +11,11 @@ pub const Self = @This();
 
 registers: [32]u64,
 csr: CSR,
+program_end_address: usize,
+program_start_address: usize,
+program_counter: usize,
 mmu: MMU, // 39 bit virtual memory addresses, used to look up physical memory address in PhysicalMemory given current page table pointed to by satp
 memory: PhysicalMemory, // todo: WASM operates on 32-bit values natively, consider benchmarking if we store memory in 32b blocks
-program_counter: usize,
 
 const start_address = 0x100; // 256 in decimal, program starts at this address
 
@@ -24,6 +26,8 @@ pub fn new() Self {
         .mmu = MMU.new(),
         .memory = PhysicalMemory.new(),
         .program_counter = start_address,
+        .program_start_address = start_address,
+        .program_end_address = start_address,
     };
 }
 

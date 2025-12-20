@@ -23,6 +23,8 @@ pub fn main() !void {
     const program_buf: []u8 = platform.memory.data[platform.program_counter..];
     var program_file = try std.fs.cwd().openFile(args[1], .{ .mode = .read_only });
     const len = try program_file.readAll(program_buf);
+    // todo make a better api for this
+    platform.program_end_address = platform.program_start_address + len;
     program_file.close();
     try print("loaded {d} bytes\n", .{len});
     try platform.memory.display();
