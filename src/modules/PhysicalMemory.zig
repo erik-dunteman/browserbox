@@ -1,5 +1,5 @@
 const std = @import("std");
-const print = @import("io.zig").print;
+const print = @import("../utils/print.zig").print;
 
 // for now, make physical memory statically sized
 const PHYSICAL_MEMORY_SIZE = 1024; // 1KB, for now, for debugability
@@ -28,13 +28,13 @@ pub fn load_byte(self: *Self, address: usize) u8 {
 
 pub fn load_half(self: *Self, address: usize) u16 {
     // store in big endian
-    const buffer: *[2]u8 = self.data.items[address..][0..2];
-    return std.mem.readInt(u16, buffer, .big);
+    const buffer = self.data[address..][0..2];
+    return std.mem.readInt(u16, buffer, .little);
 }
 
 pub fn load_word(self: *Self, address: usize) u32 {
-    const buffer: *[4]u8 = self.data[address..][0..4];
-    return std.mem.readInt(u32, buffer, .big);
+    const buffer = self.data[address..][0..4];
+    return std.mem.readInt(u32, buffer, .little);
 }
 
 pub fn store_byte(self: *Self, address: usize, value: u8) !void {
@@ -42,9 +42,11 @@ pub fn store_byte(self: *Self, address: usize, value: u8) !void {
 }
 
 pub fn store_half(self: *Self, address: usize, value: u16) !void {
-    std.mem.writeInt(u16, &self.data[address..][0..2], value, .big);
+    const buffer = self.data[address..][0..2];
+    std.mem.writeInt(u16, buffer, value, .little);
 }
 
 pub fn store_word(self: *Self, address: usize, value: u32) !void {
-    std.mem.writeInt(u32, &self.data[address..][0..4], value, .big);
+    const buffer = self.data[address..][0..4];
+    std.mem.writeInt(u32, buffer, value, .little);
 }

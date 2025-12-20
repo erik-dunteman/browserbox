@@ -3,7 +3,7 @@
 // we make small adjustments to fit RV64
 const std = @import("std");
 const Platform = @import("Platform.zig");
-const print = @import("io.zig").print;
+const print = @import("utils/print.zig").print;
 
 pub const Instruction = union(enum) {
     pub fn execute(self: Instruction, platform: *Platform) !void {

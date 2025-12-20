@@ -1,7 +1,7 @@
 const std = @import("std");
 const assert = @import("std").debug.assert;
 const parser = @import("parser.zig");
-const print = @import("io.zig").print;
+const print = @import("utils/print.zig").print;
 const Platform = @import("Platform.zig");
 
 test {
@@ -19,11 +19,13 @@ pub fn main() !void {
     }
     var platform = Platform.new();
 
-    const start_address = 0x100; // 256 in decimal
-    const program_buf: []u8 = platform.memory.data[start_address..];
+    // program counter is preset at the start address of the instruction region
+    const program_buf: []u8 = platform.memory.data[platform.program_counter..];
     var program_file = try std.fs.cwd().openFile(args[1], .{ .mode = .read_only });
-    try program_file.readAll(program_buf);
+    const len = try program_file.readAll(program_buf);
     program_file.close();
+    try print("loaded {d} bytes\n", .{len});
+    try platform.memory.display();
 
     try platform.run_program();
 }

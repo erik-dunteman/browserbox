@@ -4,7 +4,7 @@
 
 const std = @import("std");
 const Instruction = @import("instructions.zig").Instruction;
-const print = @import("io.zig").print;
+const print = @import("utils/print.zig").print;
 
 pub fn parse_word(word: u32) Instruction {
     return WordFormat.from_word(word).into_instruction();
