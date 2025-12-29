@@ -618,12 +618,13 @@ pub const Instruction = union(enum) {
             // t = CSRs[csr]; CSRs[csr] = x[rs1]; x[rd] = t
             if (self.rd != 0) {
                 const old_csr = platform.csr.get(self.csr);
-                platform.csr.set(self.csr, platform.registers[self.rs1]);
+                platform.csr.set(platform, self.csr, platform.registers[self.rs1]);
                 platform.registers[self.rd] = old_csr;
             } else {
-                platform.csr.set(self.csr, platform.registers[self.rs1]);
+                platform.csr.set(platform, self.csr, platform.registers[self.rs1]);
             }
             platform.program_counter += 4;
+            try platform.csr.display();
         }
     },
 
@@ -639,7 +640,7 @@ pub const Instruction = union(enum) {
                 platform.registers[self.rd] = old_csr;
             }
             if (self.rs1 != 0) {
-                platform.csr.set(self.csr, old_csr | platform.registers[self.rs1]);
+                platform.csr.set(platform, self.csr, old_csr | platform.registers[self.rs1]);
             }
             platform.program_counter += 4;
         }
@@ -657,7 +658,7 @@ pub const Instruction = union(enum) {
                 platform.registers[self.rd] = old_csr;
             }
             if (self.rs1 != 0) {
-                platform.csr.set(self.csr, old_csr & ~platform.registers[self.rs1]);
+                platform.csr.set(platform, self.csr, old_csr & ~platform.registers[self.rs1]);
             }
             platform.program_counter += 4;
         }
@@ -673,10 +674,10 @@ pub const Instruction = union(enum) {
             const zimm: u64 = @intCast(self.uimm);
             if (self.rd != 0) {
                 const old_csr = platform.csr.get(self.csr);
-                platform.csr.set(self.csr, zimm);
+                platform.csr.set(platform, self.csr, zimm);
                 platform.registers[self.rd] = old_csr;
             } else {
-                platform.csr.set(self.csr, zimm);
+                platform.csr.set(platform, self.csr, zimm);
             }
             platform.program_counter += 4;
         }
@@ -695,7 +696,7 @@ pub const Instruction = union(enum) {
                 platform.registers[self.rd] = old_csr;
             }
             if (self.uimm != 0) {
-                platform.csr.set(self.csr, old_csr | zimm);
+                platform.csr.set(platform, self.csr, old_csr | zimm);
             }
             platform.program_counter += 4;
         }
@@ -714,7 +715,7 @@ pub const Instruction = union(enum) {
                 platform.registers[self.rd] = old_csr;
             }
             if (self.uimm != 0) {
-                platform.csr.set(self.csr, old_csr & ~zimm);
+                platform.csr.set(platform, self.csr, old_csr & ~zimm);
             }
             platform.program_counter += 4;
         }

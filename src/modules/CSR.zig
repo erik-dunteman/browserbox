@@ -1,4 +1,6 @@
 const panic = @import("../utils/print.zig").panic;
+const print = @import("../utils/print.zig").print;
+const Platform = @import("../Platform.zig");
 pub const Self = @This();
 
 const CSRCode = enum(u12) {
@@ -31,7 +33,11 @@ pub fn init() Self {
     };
 }
 
-pub fn set(self: *Self, csr: u12, val: u64) void {
+pub fn display(self: *Self) !void {
+    try print("CSR:\n\tsepc=0x{x}\n\tscause=0x{x}\n\tstval=0x{x}\n\tstvec=0x{x}\n\tsatp=0x{x}\n\tsie=0x{x}\n\tsip=0x{x}\n", .{ self.sepc, self.scause, self.stval, self.stvec, self.satp, self.sie, self.sip });
+}
+
+pub fn set(self: *Self, platform: *Platform, csr: u12, val: u64) void {
     const target: CSRCode = @enumFromInt(csr);
     switch (target) {
         .Sepc => {
@@ -47,6 +53,7 @@ pub fn set(self: *Self, csr: u12, val: u64) void {
             self.stvec = val;
         },
         .Satp => {
+            platform.memory.mmu.enable(val);
             self.satp = val;
         },
         .Sie => {

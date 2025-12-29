@@ -43,6 +43,7 @@ pub fn load_program_from_binary(self: *Self, path: []const u8) !void {
 
     try self.memory.store_bytes(BINARY_PROGRAM_START, program_buf[0..len]);
     self.program_start = BINARY_PROGRAM_START;
+    self.program_counter = BINARY_PROGRAM_START;
     self.registers[2] = BINARY_PROGRAM_START;
     self.program_end = BINARY_PROGRAM_START + len;
 }
@@ -81,9 +82,10 @@ pub fn load_program_from_elf(self: *Self, path: []const u8) !void {
 }
 
 pub fn run_program(self: *Self) !void {
-
+    try print("Running program from address 0x{x} to 0x{x}, program counter 0x{x}\n", .{ self.program_start, self.program_end, self.program_counter });
     // Program starts at loaded address, loads, parses, executes on hardware
     while (self.program_counter < self.program_end) {
+
         // instructions coming from disk are in little endian format
         const word = try self.memory.load_word(self.program_counter);
         const instruction = parser.parse_word(word) catch |err| switch (err) {
@@ -99,7 +101,6 @@ pub fn run_program(self: *Self) !void {
             },
             else => |e| return e,
         };
-
         try instruction.execute(self);
     }
 

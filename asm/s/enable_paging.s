@@ -10,6 +10,10 @@ sd   t0, 0(t1)           # store PTE at page table root
 li   t0, 0x8000000000000001
 csrw satp, t0
 
+# Test: load from virtual address 0x100
+li   t2, 0x100
+ld   t3, 0(t2)
+
 # See compilation output with:
 # riscv64-unknown-elf-objdump -M no-aliases -d binary asm/o/enable_paging.o
 
@@ -21,4 +25,6 @@ csrw satp, t0
 #   10:   03f29293                slli    t0,t0,0x3f
 #   14:   00128293                addi    t0,t0,1
 #   18:   18029073                csrrw   zero,satp,t0
+#   1c:   10000393                addi    t2,zero,256
+#   20:   0003be03                ld      t3,0(t2)
 
