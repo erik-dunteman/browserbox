@@ -34,12 +34,14 @@ pub const Self = @This();
 // [40..48]    MemSiz (how much memory to allocate)
 // [48..56]    Align (ignore for emulator)
 
+const MAX_ADDRESS = std.math.maxInt(usize);
+
 pub const ProgramHeader = struct {
     header_type: HeaderType,
     flags: u32,
-    offset: u64, // starting index in elf file
-    file_size: u64, // length in elf file
-    virtual_address: u64, // target address in memory
+    offset: usize, // starting index in elf file
+    file_size: usize, // length in elf file
+    virtual_address: usize, // target address in memory
 
     // We only support LOAD headers
     pub const HeaderType = enum {
@@ -49,15 +51,21 @@ pub const ProgramHeader = struct {
 
     pub fn parse(header_buf: []u8) !ProgramHeader {
         const header_type = std.mem.readInt(u32, header_buf[0..4], .little);
+        const offset = std.mem.readInt(u64, header_buf[8..16], .little);
+        const virtual_address = std.mem.readInt(u64, header_buf[16..24], .little);
+        const file_size = std.mem.readInt(u64, header_buf[32..40], .little);
+        if (offset > MAX_ADDRESS or virtual_address > MAX_ADDRESS or file_size > MAX_ADDRESS) {
+            @panic("Invalid ELF file: address out of range");
+        }
         return ProgramHeader{
             .header_type = switch (header_type) {
                 1 => .LOAD,
                 else => .UNSUPPORTED,
             },
             .flags = std.mem.readInt(u32, header_buf[4..8], .little),
-            .offset = std.mem.readInt(u64, header_buf[8..16], .little),
-            .virtual_address = std.mem.readInt(u64, header_buf[16..24], .little),
-            .file_size = std.mem.readInt(u64, header_buf[32..40], .little),
+            .offset = @truncate(offset),
+            .virtual_address = @truncate(virtual_address),
+            .file_size = @truncate(file_size),
         };
     }
 
@@ -70,7 +78,7 @@ pub const ProgramHeader = struct {
     }
 };
 
-entry_point: u64,
+entry_point: usize,
 headers: []ProgramHeader,
 
 pub fn init(allocator: std.mem.Allocator, elf_buf: []u8) !Self {
@@ -92,6 +100,9 @@ pub fn init(allocator: std.mem.Allocator, elf_buf: []u8) !Self {
 
     const program_header_count = std.mem.readInt(u16, elf_buf[56..58], .little);
     const entry_point = std.mem.readInt(u64, elf_buf[24..32], .little);
+    if (entry_point > MAX_ADDRESS) {
+        @panic("Invalid ELF file: entry point out of range");
+    }
 
     var headers = try allocator.alloc(ProgramHeader, program_header_count);
 
@@ -104,7 +115,7 @@ pub fn init(allocator: std.mem.Allocator, elf_buf: []u8) !Self {
     }
 
     return Self{
-        .entry_point = entry_point,
+        .entry_point = @truncate(entry_point),
         .headers = headers,
     };
 }

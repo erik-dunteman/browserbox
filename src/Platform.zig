@@ -5,9 +5,11 @@ const PhysicalMemory = @import("modules/PhysicalMemory.zig");
 const MMU = @import("modules/MMU.zig");
 const Elf = @import("Elf.zig");
 const print = @import("utils/print.zig").print;
+const panic = @import("utils/print.zig").panic;
 
 pub const Self = @This();
-const BINARY_PROGRAM_START = 0x8000_0000;
+
+const BINARY_PROGRAM_START = 0x8000; // conservative, for now
 
 allocator: std.mem.Allocator,
 registers: [32]u64,
@@ -29,25 +31,20 @@ pub fn init(allocator: std.mem.Allocator) !Self {
 }
 
 pub fn deinit(self: *Self) void {
-    self.memory.deinit(self.allocator);
+    self.memory.deinit();
 }
 
 pub fn load_program_from_binary(self: *Self, path: []const u8) !void {
-    // reads just the binary (.text of ELF) into memory at a fixed address
-    self.program_start = BINARY_PROGRAM_START;
-    self.program_counter = self.program_start;
-
     // read into physical memory
     var program_file = try std.fs.cwd().openFile(path, .{ .mode = .read_only });
     defer program_file.close();
-    const program_buf: []u8 = self.memory.data[self.program_counter..];
-    const len = try program_file.readAll(program_buf);
+    var program_buf: [1_000_000]u8 = undefined; // Max 1 MB file for now
+    const len = try program_file.readAll(&program_buf);
 
-    // Preset specific registers according to RISC-V ABI
-    self.registers[2] = self.program_start;
-
-    // bookkeep program addresses
-    self.program_end = self.program_start + len;
+    try self.memory.store_bytes(BINARY_PROGRAM_START, program_buf[0..len]);
+    self.program_start = BINARY_PROGRAM_START;
+    self.registers[2] = BINARY_PROGRAM_START;
+    self.program_end = BINARY_PROGRAM_START + len;
 }
 
 pub fn load_program_from_elf(self: *Self, path: []const u8) !void {
@@ -62,14 +59,10 @@ pub fn load_program_from_elf(self: *Self, path: []const u8) !void {
     const elf_buf = buf[0..elf_len];
     const elf = try Elf.init(self.allocator, elf_buf);
     defer elf.deinit(self.allocator);
-    try elf.display();
-
-    // Set program counter to entry point
-    self.program_start = elf.entry_point;
-    self.program_counter = elf.entry_point;
 
     // Set stack pointer to program start
-    self.registers[2] = elf.entry_point;
+    self.registers[2] = @as(usize, elf.entry_point);
+    self.program_start = elf.entry_point;
 
     // Perform loads as directed by headers
     for (elf.headers) |header| {
@@ -87,11 +80,12 @@ pub fn load_program_from_elf(self: *Self, path: []const u8) !void {
 }
 
 pub fn run_program(self: *Self) !void {
+    try print("Running program from address 0x{x} to 0x{x}\n", .{ self.program_start, self.program_end });
+
     // Program starts at loaded address, loads, parses, executes on hardware
     while (self.program_counter < self.program_end) {
         // instructions coming from disk are in little endian format
-        const word = self.memory.load_word(self.program_counter);
-        // try print("Loaded word: 0b{b}\n", .{word});
+        const word = try self.memory.load_word(self.program_counter);
         const instruction = parser.parse_word(word) catch |err| switch (err) {
             error.UndefinedRegion => {
                 if (self.program_counter == 0) {

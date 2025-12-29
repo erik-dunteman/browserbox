@@ -169,17 +169,11 @@ pub const Instruction = union(enum) {
 
         pub fn execute(self: @This(), platform: *Platform) !void {
             // x[rd] = x[rs1] + sext(immediate)
-            // try print("addi, rd: {d}, rs1: {d}, imm: {d}\n", .{ self.rd, self.rs1, self.imm });
-            // try print("PC before everything: {d}\n", .{platform.program_counter});
             if (self.rd != 0) {
                 const imm_extended = extend.sign_extend(u12, self.imm);
-                // try print("imm_extended: {d}\n", .{imm_extended});
                 platform.registers[self.rd] = platform.registers[self.rs1] +% imm_extended;
-                // try print("registers[rd]: {d}\n", .{platform.registers[self.rd]});
             }
-            // try print("PC after everything: {d}\n", .{platform.program_counter});
             platform.program_counter += 4;
-            // try print("PC after increment: {d}\n", .{platform.program_counter});
         }
     },
 
@@ -313,7 +307,7 @@ pub const Instruction = union(enum) {
             if (self.rd != 0) {
                 const imm_extended = extend.sign_extend(u12, self.imm);
                 const address = platform.registers[self.rs1] +% imm_extended;
-                const byte_signed: i8 = @bitCast(platform.memory.load_byte(@intCast(address)));
+                const byte_signed: i8 = @bitCast(try platform.memory.load_byte(@intCast(address)));
                 const data_signed: i64 = @intCast(byte_signed);
                 platform.registers[self.rd] = @bitCast(data_signed);
             }
@@ -331,7 +325,7 @@ pub const Instruction = union(enum) {
             if (self.rd != 0) {
                 const imm_extended = extend.sign_extend(u12, self.imm);
                 const address = platform.registers[self.rs1] +% imm_extended;
-                const half_signed: i16 = @bitCast(platform.memory.load_half(@intCast(address)));
+                const half_signed: i16 = @bitCast(try platform.memory.load_half(@intCast(address)));
                 const data_signed: i64 = @intCast(half_signed);
                 platform.registers[self.rd] = @bitCast(data_signed);
             }
@@ -349,7 +343,7 @@ pub const Instruction = union(enum) {
             if (self.rd != 0) {
                 const imm_extended = extend.sign_extend(u12, self.imm);
                 const address = platform.registers[self.rs1] +% imm_extended;
-                const word: u32 = platform.memory.load_word(@intCast(address));
+                const word: u32 = try platform.memory.load_word(@intCast(address));
                 platform.registers[self.rd] = extend.sign_extend(u32, word);
             }
             platform.program_counter += 4;
@@ -366,7 +360,7 @@ pub const Instruction = union(enum) {
             if (self.rd != 0) {
                 const imm_extended = extend.sign_extend(u12, self.imm);
                 const address = platform.registers[self.rs1] +% imm_extended;
-                const byte = platform.memory.load_byte(@intCast(address));
+                const byte = try platform.memory.load_byte(@intCast(address));
                 platform.registers[self.rd] = extend.zero_extend(u8, byte);
             }
             platform.program_counter += 4;
@@ -383,7 +377,7 @@ pub const Instruction = union(enum) {
             if (self.rd != 0) {
                 const imm_extended = extend.sign_extend(u12, self.imm);
                 const address = platform.registers[self.rs1] +% imm_extended;
-                const half = platform.memory.load_half(@intCast(address));
+                const half = try platform.memory.load_half(@intCast(address));
                 platform.registers[self.rd] = extend.zero_extend(u16, half);
             }
             platform.program_counter += 4;
@@ -591,13 +585,9 @@ pub const Instruction = union(enum) {
         pub fn execute(self: @This(), platform: *Platform) !void {
             // x[rd] = sext(immediate[31:12] << 12)
             if (self.rd != 0) {
-                // try print("lui, rd: {d}, imm: 0b{b}\n", .{ self.rd, self.imm });
                 const val_u32: u32 = @as(u32, self.imm) << 12;
-                // try print("val_u32: 0b{b}\n", .{val_u32});
                 const extended = extend.sign_extend(u32, val_u32);
-                // try print("extended: 0b{b}\n", .{extended});
                 platform.registers[self.rd] = extended;
-                // try print("registers[rd]: 0b{b}\n", .{platform.registers[self.rd]});
             }
             platform.program_counter += 4;
         }
@@ -961,7 +951,7 @@ pub const Instruction = union(enum) {
             if (self.rd != 0) {
                 const imm_extended = extend.sign_extend(u12, self.imm);
                 const address = platform.registers[self.rs1] +% imm_extended;
-                const word: u32 = platform.memory.load_word(@intCast(address));
+                const word: u32 = try platform.memory.load_word(@intCast(address));
                 platform.registers[self.rd] = extend.zero_extend(u32, word);
             }
             platform.program_counter += 4;
@@ -975,16 +965,10 @@ pub const Instruction = union(enum) {
         pub fn execute(self: @This(), platform: *Platform) !void {
             // x[rd] = M[x[rs1] + sext(offset)][63:0]
             if (self.rd != 0) {
-                // try print("ld, rd: {d}, rs1: {d}, imm: 0b{b}\n", .{ self.rd, self.rs1, self.imm });
                 const imm_extended = extend.sign_extend(u12, self.imm);
-                // try print("imm_extended: 0b{b}\n", .{imm_extended});
-                // try print("RS1: 0b{b}\n", .{platform.registers[self.rs1]});
                 const address = platform.registers[self.rs1] +% imm_extended;
-                // try print("address: 0b{b}\n", .{address});
-                const dword = platform.memory.load_dword(@intCast(address));
-                // try print("dword: 0x{x}\n", .{dword});
+                const dword = try platform.memory.load_dword(@intCast(address));
                 platform.registers[self.rd] = dword;
-                // try print("registers[rd]: 0x{x}\n", .{platform.registers[self.rd]});
             }
             platform.program_counter += 4;
         }
@@ -996,18 +980,10 @@ pub const Instruction = union(enum) {
 
         pub fn execute(self: @This(), platform: *Platform) !void {
             // M[x[rs1] + sext(offset)] = x[rs2][63:0]
-            // try print("PC before everything: {d}\n", .{platform.program_counter});
-            // try print("RS1: {d}\n", .{platform.registers[self.rs1]});
-            // try print("IMM: {d}\n", .{self.imm});
             const imm_extended = extend.sign_extend(u12, self.imm);
-            // try print("IMM extended: {d}\n", .{imm_extended});
             const address = platform.registers[self.rs1] +% imm_extended;
-            // try print("Address: {d}\n", .{address});
-            // try print("RS2: {d}\n", .{platform.registers[self.rs2]});
             try platform.memory.store_dword(@intCast(address), platform.registers[self.rs2]);
-            // try print("PC before increment: {d}\n", .{platform.program_counter});
             platform.program_counter += 4;
-            // try print("PC after increment: {d}\n", .{platform.program_counter});
         }
     },
 };
