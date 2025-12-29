@@ -54,6 +54,7 @@ test "test built elf files" {
 
         const elf_path = try std.fs.path.join(allocator, &[_][]const u8{ "asm/elf", entry.name });
         defer allocator.free(elf_path);
+        try print("\n\nLoading program from {s}\n", .{elf_path});
         try platform.load_program_from_elf(elf_path);
         try platform.run_program();
     }
