@@ -6,7 +6,7 @@ pub const Self = @This();
 
 // for now, make physical memory statically sized
 // const PHYSICAL_MEMORY_SIZE = 1024; // 1KB, for now, for debugability
-const PHYSICAL_MEMORY_SIZE = 0x1_0000_0000; // 8GB RAM
+const PHYSICAL_MEMORY_SIZE = 0x1_0000_0000; // 4GB RAM
 
 // Struct attributes
 data: []u8 = undefined, // zig compiler doesn't accept statically baking in the physical memory size so we'll need to heap allocate
