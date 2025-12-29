@@ -63,6 +63,7 @@ pub fn load_program_from_elf(self: *Self, path: []const u8) !void {
     // Set stack pointer to program start
     self.registers[2] = @as(usize, elf.entry_point);
     self.program_start = elf.entry_point;
+    self.program_counter = elf.entry_point;
 
     // Perform loads as directed by headers
     for (elf.headers) |header| {
@@ -80,7 +81,6 @@ pub fn load_program_from_elf(self: *Self, path: []const u8) !void {
 }
 
 pub fn run_program(self: *Self) !void {
-    try print("Running program from address 0x{x} to 0x{x}\n", .{ self.program_start, self.program_end });
 
     // Program starts at loaded address, loads, parses, executes on hardware
     while (self.program_counter < self.program_end) {
@@ -102,5 +102,6 @@ pub fn run_program(self: *Self) !void {
 
         try instruction.execute(self);
     }
+
     try print("Program exited successfully.\n", .{});
 }

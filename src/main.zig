@@ -38,3 +38,23 @@ pub fn main() !void {
 
     try platform.run_program();
 }
+
+test "test built elf files" {
+    const elf_dir = std.fs.cwd().openDir("asm/elf", .{ .iterate = true }) catch @panic("Failed to open asm/elf directory");
+    var iter = elf_dir.iterate();
+
+    const allocator = std.testing.allocator;
+    var platform = try Platform.init(allocator);
+    defer platform.deinit();
+
+    while (iter.next() catch @panic("Failed to iterate asm/elf directory")) |entry| {
+        if (entry.kind != .file) continue;
+        const ext = std.fs.path.extension(entry.name);
+        if (!std.mem.eql(u8, ext, ".elf")) continue;
+
+        const elf_path = try std.fs.path.join(allocator, &[_][]const u8{ "asm/elf", entry.name });
+        defer allocator.free(elf_path);
+        try platform.load_program_from_elf(elf_path);
+        try platform.run_program();
+    }
+}
