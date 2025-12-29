@@ -13,15 +13,22 @@ pub fn main() !void {
     const allocator = std.heap.page_allocator;
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
-    // if (args.len != 2) {
-    //     try print("Target file not provided\n", .{});
-    //     return;
-    // }
+    if (args.len != 3) {
+        try print("Usage:\n\t--binary\tprogram.bin\n\t--elf\t\tprogram.elf\n", .{});
+        return;
+    }
 
     var platform = try Platform.init(allocator);
+    defer platform.deinit();
 
-    try platform.load_program_from_elf("asm/elf/fib_riscv.elf");
-    try platform.memory.display();
+    if (std.mem.eql(u8, args[1], "--binary")) {
+        try platform.load_program_from_binary(args[2]);
+    } else if (std.mem.eql(u8, args[1], "--elf")) {
+        try platform.load_program_from_elf(args[2]);
+    } else {
+        try print("Invalid argument: {s}\n", .{args[1]});
+        return;
+    }
+
     try platform.run_program();
-    try platform.memory.display();
 }
