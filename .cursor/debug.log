@@ -1,0 +1,1 @@
+{"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"PhysicalMemory.zig:40","message":"load_dword called","data":{"address":16785896,"physicalMemorySize":1024,"addressInBounds":false}

@@ -6,3 +6,9 @@ pub fn print(comptime fmt: []const u8, args: anytype) !void {
     var print_buf: [256]u8 = undefined;
     stderr.writeAll(std.fmt.bufPrint(&print_buf, fmt, args) catch return) catch {};
 }
+
+pub fn panic(comptime fmt: []const u8, args: anytype) void {
+    var print_buf: [256]u8 = undefined;
+    const msg = std.fmt.bufPrint(&print_buf, fmt, args) catch return;
+    @panic(msg);
+}

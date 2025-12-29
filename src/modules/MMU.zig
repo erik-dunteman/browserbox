@@ -1,5 +1,5 @@
 pub const Self = @This();
 
-pub fn new() Self {
+pub fn init() Self {
     return Self{};
 }

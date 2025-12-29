@@ -6,8 +6,8 @@ const std = @import("std");
 const Instruction = @import("instructions.zig").Instruction;
 const print = @import("utils/print.zig").print;
 
-pub fn parse_word(word: u32) Instruction {
-    return WordFormat.from_word(word).into_instruction();
+pub fn parse_word(word: u32) !Instruction {
+    return (try WordFormat.from_word(word)).into_instruction();
 }
 
 // 32 bit words are parsed according to these formats
@@ -17,7 +17,9 @@ const Format = enum { R, I, S, B, U, J };
 const opcode_to_format: [128]?Format = blk: {
     var table: [128]?Format = .{null} ** 128;
     table[0b0110011] = .R; // op (add, sub, xor, etc.)
+    table[0b0111011] = .R; // (addw, subw)
     table[0b0010011] = .I; // op_i (addi, etc.)
+    table[0b0011011] = .I; // (andiw, etc.)
     table[0b0000011] = .I; // load
     table[0b0100011] = .S; // store
     table[0b1100011] = .B; // branch
@@ -25,7 +27,8 @@ const opcode_to_format: [128]?Format = blk: {
     table[0b1100111] = .I; // jalr
     table[0b0110111] = .U; // lui
     table[0b0010111] = .U; // auipc
-    table[0b1110011] = .I; // env (ecall, ebreak)
+    table[0b1110011] = .I; // env (ecall, ebreak) and SYSTEM
+    table[0b0001111] = .I; // fence, fence.i
     break :blk table;
 };
 
@@ -33,8 +36,14 @@ const opcode_to_format: [128]?Format = blk: {
 const WordFormat = union(enum) {
 
     // Convert a 32 bit word to a WordFormat
-    pub fn from_word(word: u32) WordFormat {
+    pub fn from_word(word: u32) !WordFormat {
         const opcode = word & 0b1111111;
+
+        //  Handle reading into an undefined region
+        if (opcode == 0b0101010) {
+            return error.UndefinedRegion;
+        }
+
         const format = opcode_to_format[opcode] orelse {
             var buf: [64]u8 = undefined;
             const msg = std.fmt.bufPrint(&buf, "unsupported opcode: 0b{b:0>7}", .{opcode}) catch {
@@ -74,27 +83,53 @@ const WordFormat = union(enum) {
         funct7: u7, // 25:31
 
         fn into_instruction(self: @This()) Instruction {
-            switch (self.funct3) {
-                0x0 => {
-                    switch (self.funct7) {
-                        0x0 => return .{ .add = .{ .rd = self.rd, .rs1 = self.rs1, .rs2 = self.rs2 } },
-                        0x20 => return .{ .sub = .{ .rd = self.rd, .rs1 = self.rs1, .rs2 = self.rs2 } },
-                        else => @panic("unknown funct7 in 0x0 branch of R-type instruction parse"),
+            switch (self.opcode) {
+                0b0110011 => {
+                    switch (self.funct3) {
+                        0x0 => {
+                            switch (self.funct7) {
+                                0x0 => return .{ .add = .{ .rd = self.rd, .rs1 = self.rs1, .rs2 = self.rs2 } },
+                                0x20 => return .{ .sub = .{ .rd = self.rd, .rs1 = self.rs1, .rs2 = self.rs2 } },
+                                else => @panic("unknown funct7 in 0x0 branch of R-type instruction parse"),
+                            }
+                        },
+                        0x1 => return .{ .sll = .{ .rd = self.rd, .rs1 = self.rs1, .rs2 = self.rs2 } },
+                        0x2 => return .{ .slt = .{ .rd = self.rd, .rs1 = self.rs1, .rs2 = self.rs2 } },
+                        0x3 => return .{ .sltu = .{ .rd = self.rd, .rs1 = self.rs1, .rs2 = self.rs2 } },
+                        0x4 => return .{ .xor = .{ .rd = self.rd, .rs1 = self.rs1, .rs2 = self.rs2 } },
+                        0x5 => {
+                            switch (self.funct7) {
+                                0x0 => return .{ .srl = .{ .rd = self.rd, .rs1 = self.rs1, .rs2 = self.rs2 } },
+                                0x20 => return .{ .sra = .{ .rd = self.rd, .rs1 = self.rs1, .rs2 = self.rs2 } },
+                                else => @panic("unknown funct7 in 0x5 branch of R-type instruction parse"),
+                            }
+                        },
+                        0x6 => return .{ .or_ = .{ .rd = self.rd, .rs1 = self.rs1, .rs2 = self.rs2 } },
+                        0x7 => return .{ .and_ = .{ .rd = self.rd, .rs1 = self.rs1, .rs2 = self.rs2 } },
                     }
                 },
-                0x1 => return .{ .sll = .{ .rd = self.rd, .rs1 = self.rs1, .rs2 = self.rs2 } },
-                0x2 => return .{ .slt = .{ .rd = self.rd, .rs1 = self.rs1, .rs2 = self.rs2 } },
-                0x3 => return .{ .sltu = .{ .rd = self.rd, .rs1 = self.rs1, .rs2 = self.rs2 } },
-                0x4 => return .{ .xor = .{ .rd = self.rd, .rs1 = self.rs1, .rs2 = self.rs2 } },
-                0x5 => {
-                    switch (self.funct7) {
-                        0x0 => return .{ .srl = .{ .rd = self.rd, .rs1 = self.rs1, .rs2 = self.rs2 } },
-                        0x20 => return .{ .sra = .{ .rd = self.rd, .rs1 = self.rs1, .rs2 = self.rs2 } },
-                        else => @panic("unknown funct7 in 0x5 branch of R-type instruction parse"),
+                0b0111011 => {
+                    // ALU W
+                    switch (self.funct3) {
+                        0b000 => {
+                            switch (self.funct7) {
+                                0b0000000 => return .{ .addw = .{ .rd = self.rd, .rs1 = self.rs1, .rs2 = self.rs2 } },
+                                0b0100000 => return .{ .subw = .{ .rd = self.rd, .rs1 = self.rs1, .rs2 = self.rs2 } },
+                                else => @panic("unknown funct7 in 0x0 branch of ALU W instruction"),
+                            }
+                        },
+                        0b001 => return .{ .sllw = .{ .rd = self.rd, .rs1 = self.rs1, .rs2 = self.rs2 } },
+                        0b101 => {
+                            switch (self.funct7) {
+                                0b0000000 => return .{ .srlw = .{ .rd = self.rd, .rs1 = self.rs1, .rs2 = self.rs2 } },
+                                0b0100000 => return .{ .sraw = .{ .rd = self.rd, .rs1 = self.rs1, .rs2 = self.rs2 } },
+                                else => @panic("unknown funct7 in 0b101 branch of ALU W instruction"),
+                            }
+                        },
+                        else => @panic("unknown funct3 in ALU W instruction"),
                     }
                 },
-                0x6 => return .{ .or_ = .{ .rd = self.rd, .rs1 = self.rs1, .rs2 = self.rs2 } },
-                0x7 => return .{ .and_ = .{ .rd = self.rd, .rs1 = self.rs1, .rs2 = self.rs2 } },
+                else => @panic("unknown opcode in R-type instruction"),
             }
         }
     },
@@ -134,24 +169,75 @@ const WordFormat = union(enum) {
                         0x7 => return .{ .andi = .{ .rd = self.rd, .rs1 = self.rs1, .imm = self.imm } },
                     }
                 },
+                0b0011011 => {
+                    // ALU W
+                    // These instructions are used on RV64 platforms to replicate RV32 behavior
+                    switch (self.funct3) {
+                        0b000 => return .{ .addiw = .{ .rd = self.rd, .rs1 = self.rs1, .imm = self.imm } },
+                        0b001 => {
+                            const shift_amt: u5 = @truncate(self.imm);
+                            return .{ .slliw = .{ .rd = self.rd, .rs1 = self.rs1, .shift_amt = shift_amt } };
+                        },
+                        0b101 => {
+                            const shift_amt: u5 = @truncate(self.imm);
+                            switch (self.imm >> 5) {
+                                0b0000000 => return .{ .srliw = .{ .rd = self.rd, .rs1 = self.rs1, .shift_amt = shift_amt } },
+                                0b0100000 => return .{ .sraiw = .{ .rd = self.rd, .rs1 = self.rs1, .shift_amt = shift_amt } },
+                                else => @panic("unknown imm in 0x5 branch of I-type ALU W instruction"),
+                            }
+                        },
+                        else => @panic("unknown funct3 in ALU W instruction"),
+                    }
+                },
                 0b0000011 => { // Load
                     switch (self.funct3) {
-                        0x0 => return .{ .lb = .{ .rd = self.rd, .rs1 = self.rs1, .imm = self.imm } },
-                        0x1 => return .{ .lh = .{ .rd = self.rd, .rs1 = self.rs1, .imm = self.imm } },
-                        0x2 => return .{ .lw = .{ .rd = self.rd, .rs1 = self.rs1, .imm = self.imm } },
-                        0x4 => return .{ .lbu = .{ .rd = self.rd, .rs1 = self.rs1, .imm = self.imm } },
-                        0x5 => return .{ .lhu = .{ .rd = self.rd, .rs1 = self.rs1, .imm = self.imm } },
+                        0b000 => return .{ .lb = .{ .rd = self.rd, .rs1 = self.rs1, .imm = self.imm } },
+                        0b001 => return .{ .lh = .{ .rd = self.rd, .rs1 = self.rs1, .imm = self.imm } },
+                        0b010 => return .{ .lw = .{ .rd = self.rd, .rs1 = self.rs1, .imm = self.imm } },
+                        0b011 => return .{ .ld = .{ .rd = self.rd, .rs1 = self.rs1, .imm = self.imm } },
+                        0b100 => return .{ .lbu = .{ .rd = self.rd, .rs1 = self.rs1, .imm = self.imm } },
+                        0b101 => return .{ .lhu = .{ .rd = self.rd, .rs1 = self.rs1, .imm = self.imm } },
+                        0b110 => return .{ .lwu = .{ .rd = self.rd, .rs1 = self.rs1, .imm = self.imm } },
                         else => @panic("unknown funct3 in Load instruction"),
                     }
                 },
                 0b1100111 => { // jalr
                     return .{ .jalr = .{ .rd = self.rd, .rs1 = self.rs1, .imm = self.imm } };
                 },
-                0b1110011 => { // Environment
-                    switch (self.imm) {
-                        0x0 => return .{ .ecall = .{} },
-                        0x1 => return .{ .ebreak = .{} },
-                        else => @panic("unknown imm in Environment instruction"),
+                0b0001111 => { // fence, fence.i
+                    switch (self.funct3) {
+                        0b000 => {
+                            // pred is in imm[11:8], succ is in imm[7:4]
+                            const pred: u4 = @truncate(self.imm >> 4);
+                            const succ: u4 = @truncate(self.imm);
+                            return .{ .fence = .{ .pred = pred, .succ = succ } };
+                        },
+                        0b001 => return .{ .fence_i = .{} },
+                        else => @panic("unknown funct3 in fence instruction"),
+                    }
+                },
+                0b1110011 => {
+                    switch (self.funct3) {
+                        0b000 => {
+                            // Environment and SYSTEM instructions
+                            switch (self.imm) {
+                                0x0 => return .{ .ecall = .{} },
+                                0x1 => return .{ .ebreak = .{} },
+                                0x105 => return .{ .wfi = .{} },
+                                0x302 => return .{ .mret = .{} },
+                                0x102 => return .{ .sret = .{} },
+                                0x002 => return .{ .uret = .{} },
+                                else => @panic("unknown imm in Environment instruction"),
+                            }
+                        },
+                        // CSR
+                        0b001 => return .{ .csrrw = .{ .rd = self.rd, .rs1 = self.rs1, .csr = self.imm } },
+                        0b010 => return .{ .csrrs = .{ .rd = self.rd, .rs1 = self.rs1, .csr = self.imm } },
+                        0b011 => return .{ .csrrc = .{ .rd = self.rd, .rs1 = self.rs1, .csr = self.imm } },
+                        0b100 => @panic("unknown funct3 in CSR instruction"),
+                        0b101 => return .{ .csrrwi = .{ .rd = self.rd, .uimm = self.rs1, .csr = self.imm } },
+                        0b110 => return .{ .csrrsi = .{ .rd = self.rd, .uimm = self.rs1, .csr = self.imm } },
+                        0b111 => return .{ .csrrci = .{ .rd = self.rd, .uimm = self.rs1, .csr = self.imm } },
                     }
                 },
                 else => @panic("unknown opcode in I-type instruction"),
@@ -173,9 +259,10 @@ const WordFormat = union(enum) {
 
         fn into_instruction(self: @This()) Instruction {
             switch (self.funct3) {
-                0x0 => return .{ .sb = .{ .rs1 = self.rs1, .rs2 = self.rs2, .imm = self.imm() } },
-                0x1 => return .{ .sh = .{ .rs1 = self.rs1, .rs2 = self.rs2, .imm = self.imm() } },
-                0x2 => return .{ .sw = .{ .rs1 = self.rs1, .rs2 = self.rs2, .imm = self.imm() } },
+                0b000 => return .{ .sb = .{ .rs1 = self.rs1, .rs2 = self.rs2, .imm = self.imm() } },
+                0b001 => return .{ .sh = .{ .rs1 = self.rs1, .rs2 = self.rs2, .imm = self.imm() } },
+                0b010 => return .{ .sw = .{ .rs1 = self.rs1, .rs2 = self.rs2, .imm = self.imm() } },
+                0b011 => return .{ .sd = .{ .rs1 = self.rs1, .rs2 = self.rs2, .imm = self.imm() } },
                 else => @panic("unknown funct3 in S-type instruction"),
             }
         }
@@ -297,6 +384,11 @@ test "parse instructions" {
         // Environment instructions (I-type, opcode 1110011)
         .{ .word = 0x00000073, .expected = .{ .ecall = .{} } },
         .{ .word = 0x00100073, .expected = .{ .ebreak = .{} } },
+        // Fence instructions (I-type, opcode 0001111)
+        .{ .word = 0x0ff0000f, .expected = .{ .fence = .{ .pred = 0xf, .succ = 0xf } } }, // fence with pred=succ=0xf
+        .{ .word = 0x0000100f, .expected = .{ .fence_i = .{} } }, // fence.i
+        // SYSTEM instructions (I-type, opcode 1110011, funct3=000)
+        .{ .word = 0x10500073, .expected = .{ .wfi = .{} } }, // wfi
     };
 
     for (test_cases) |tc| {

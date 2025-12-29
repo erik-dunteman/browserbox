@@ -39,6 +39,11 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
+    // Copy RISC-V ELF to asm/elf directory
+    const copy_elf = b.addSystemCommand(&.{ "cp", "-f" });
+    copy_elf.addArtifactArg(riscv_exe);
+    copy_elf.addArg("asm/elf/fib_riscv.elf");
+
     // Convert RISC-V ELF to raw binary (extract only .text section)
     const objcopy_cmd = b.addSystemCommand(&.{
         "riscv64-unknown-elf-objcopy",
@@ -48,16 +53,17 @@ pub fn build(b: *std.Build) void {
     });
     objcopy_cmd.addArtifactArg(riscv_exe);
     const riscv_bin = objcopy_cmd.addOutputFileArg("fib_riscv.bin");
+
     // Copy to asm/bin directory
     const copy_cmd = b.addSystemCommand(&.{ "cp", "-f" });
     copy_cmd.addFileArg(riscv_bin);
     copy_cmd.addArg("asm/bin/fib_riscv.bin");
-    const install_bin = &copy_cmd.step;
 
     b.installArtifact(wasm_exe);
     b.installArtifact(native_exe);
     b.installArtifact(riscv_exe);
-    b.getInstallStep().dependOn(install_bin);
+    b.getInstallStep().dependOn(&copy_cmd.step);
+    b.getInstallStep().dependOn(&copy_elf.step);
 
     // add run cli
     const run_exe = b.addRunArtifact(native_exe);

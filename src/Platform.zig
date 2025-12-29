@@ -3,37 +3,87 @@ const parser = @import("parser.zig");
 const CSR = @import("modules/CSR.zig");
 const PhysicalMemory = @import("modules/PhysicalMemory.zig");
 const MMU = @import("modules/MMU.zig");
+const Elf = @import("Elf.zig");
 const print = @import("utils/print.zig").print;
 
 pub const Self = @This();
-const PROGRAM_START = 0x200;
+const BINARY_PROGRAM_START = 0x8000_0000;
 
+allocator: std.mem.Allocator,
 registers: [32]u64,
 csr: CSR,
-program_start: usize = PROGRAM_START,
-program_end: usize = PROGRAM_START,
-program_counter: usize = PROGRAM_START,
+program_start: usize = undefined,
+program_end: usize = undefined,
+program_counter: usize = undefined,
 mmu: MMU, // 39 bit virtual memory addresses, used to look up physical memory address in PhysicalMemory given current page table pointed to by satp
 memory: PhysicalMemory, // todo: WASM operates on 32-bit values natively, consider benchmarking if we store memory in 32b blocks
 
-pub fn new() Self {
+pub fn init(allocator: std.mem.Allocator) !Self {
     return Self{
+        .allocator = allocator,
         .registers = .{0} ** 32,
-        .csr = CSR.new(),
-        .mmu = MMU.new(),
-        .memory = PhysicalMemory.new(),
+        .csr = CSR.init(),
+        .mmu = MMU.init(),
+        .memory = try PhysicalMemory.init(allocator),
     };
 }
 
-pub fn load_program_from_file(self: *Self, path: []const u8) !void {
+pub fn deinit(self: *Self) void {
+    self.memory.deinit(self.allocator);
+}
+
+pub fn load_program_from_binary(self: *Self, path: []const u8) !void {
+    // reads just the binary (.text of ELF) into memory at a fixed address
+    self.program_start = BINARY_PROGRAM_START;
+    self.program_counter = self.program_start;
+
     // read into physical memory
     var program_file = try std.fs.cwd().openFile(path, .{ .mode = .read_only });
     defer program_file.close();
     const program_buf: []u8 = self.memory.data[self.program_counter..];
     const len = try program_file.readAll(program_buf);
 
+    // Preset specific registers according to RISC-V ABI
+    self.registers[2] = self.program_start;
+
     // bookkeep program addresses
     self.program_end = self.program_start + len;
+}
+
+pub fn load_program_from_elf(self: *Self, path: []const u8) !void {
+    // Parses program layout from ELF file
+    // Performs the role of a bootloader
+    var elf_file = try std.fs.cwd().openFile(path, .{ .mode = .read_only });
+    defer elf_file.close();
+
+    const buf_size = 1_000_000; // Max 1 MB file for now
+    var buf: [buf_size]u8 = undefined;
+    const elf_len = try elf_file.readAll(buf[0..]);
+    const elf_buf = buf[0..elf_len];
+    const elf = try Elf.init(self.allocator, elf_buf);
+    defer elf.deinit(self.allocator);
+    try elf.display();
+
+    // Set program counter to entry point
+    self.program_start = elf.entry_point;
+    self.program_counter = elf.entry_point;
+
+    // Set stack pointer to program start
+    self.registers[2] = elf.entry_point;
+
+    // Perform loads as directed by headers
+    for (elf.headers) |header| {
+        if (header.header_type != .LOAD) {
+            continue;
+        }
+        const data = elf_buf[header.offset .. header.offset + header.file_size];
+        try self.memory.store_bytes(header.virtual_address, data);
+
+        // If this loaded section includes entry_point, calculate program_end
+        if (header.virtual_address <= elf.entry_point and header.virtual_address + header.file_size >= elf.entry_point) {
+            self.program_end = header.virtual_address + header.file_size;
+        }
+    }
 }
 
 pub fn run_program(self: *Self) !void {
@@ -41,8 +91,22 @@ pub fn run_program(self: *Self) !void {
     while (self.program_counter < self.program_end) {
         // instructions coming from disk are in little endian format
         const word = self.memory.load_word(self.program_counter);
-        try print("Loaded word: {x}\n", .{word});
-        const instruction = parser.parse_word(word);
+        // try print("Loaded word: 0b{b}\n", .{word});
+        const instruction = parser.parse_word(word) catch |err| switch (err) {
+            error.UndefinedRegion => {
+                if (self.program_counter == 0) {
+                    // In our fibonocci compiled for freestanding OS, the compiler exits by setting PC to 0
+                    // Let's handle that case explicitly
+                    try print("PC set to 0x0 with no more instructions to execute. Exiting.\n", .{});
+                    return;
+                }
+                try print("Program attempted to access undefined region. Exiting.\n", .{});
+                return;
+            },
+            else => |e| return e,
+        };
+
         try instruction.execute(self);
     }
+    try print("Program exited successfully.\n", .{});
 }
