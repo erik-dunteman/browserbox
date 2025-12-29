@@ -17,7 +17,6 @@ csr: CSR,
 program_start: usize = undefined,
 program_end: usize = undefined,
 program_counter: usize = undefined,
-mmu: MMU, // 39 bit virtual memory addresses, used to look up physical memory address in PhysicalMemory given current page table pointed to by satp
 memory: PhysicalMemory, // todo: WASM operates on 32-bit values natively, consider benchmarking if we store memory in 32b blocks
 
 pub fn init(allocator: std.mem.Allocator) !Self {
@@ -25,7 +24,6 @@ pub fn init(allocator: std.mem.Allocator) !Self {
         .allocator = allocator,
         .registers = .{0} ** 32,
         .csr = CSR.init(),
-        .mmu = MMU.init(),
         .memory = try PhysicalMemory.init(allocator),
     };
 }
