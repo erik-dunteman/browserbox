@@ -4,12 +4,12 @@ const print = @import("utils/print.zig").print;
 const extend = @import("utils/extend.zig");
 
 pub const Instruction = union(enum) {
-    pub fn execute(self: Instruction, platform: *Platform) !void {
-        try print("Executing instruction: {any}\n", .{self});
+    pub fn execute(self: Instruction, io: std.Io, platform: *Platform) !void {
+        try print(io, "Executing instruction: {any}\n", .{self});
         switch (self) {
             // forces all enum variants to have an .execute function
             inline else => |inner| {
-                try inner.execute(platform);
+                try inner.execute(io, platform);
             },
         }
     }
@@ -21,7 +21,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         rs2: u5,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = x[rs1] + x[rs2]
             if (self.rd != 0) {
                 platform.registers[self.rd] = platform.registers[self.rs1] +% platform.registers[self.rs2];
@@ -35,7 +36,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         rs2: u5,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = x[rs1] - x[rs2]
             if (self.rd != 0) {
                 platform.registers[self.rd] = platform.registers[self.rs1] -% platform.registers[self.rs2];
@@ -49,7 +51,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         rs2: u5,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = x[rs1] ^ x[rs2]
             if (self.rd != 0) {
                 platform.registers[self.rd] = platform.registers[self.rs1] ^ platform.registers[self.rs2];
@@ -63,7 +66,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         rs2: u5,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = x[rs1] | x[rs2]
             if (self.rd != 0) {
                 platform.registers[self.rd] = platform.registers[self.rs1] | platform.registers[self.rs2];
@@ -77,7 +81,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         rs2: u5,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = x[rs1] & x[rs2]
             if (self.rd != 0) {
                 platform.registers[self.rd] = platform.registers[self.rs1] & platform.registers[self.rs2];
@@ -91,7 +96,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         rs2: u5,
 
-        pub fn execute(self: *const @This(), platform: *Platform) !void {
+        pub fn execute(self: *const @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = x[rs1] << x[rs2]
             if (self.rd != 0) {
                 const shift_amt: u6 = @intCast(platform.registers[self.rs2] & 0b11_1111);
@@ -106,7 +112,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         rs2: u5,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = x[rs1] >>u x[rs2]
             if (self.rd != 0) {
                 const shift_amt: u6 = @intCast(platform.registers[self.rs2] & 0b11_1111);
@@ -121,7 +128,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         rs2: u5,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = x[rs1] >>s x[rs2]
             if (self.rd != 0) {
                 const shift_amt: u6 = @intCast(platform.registers[self.rs2] & 0b11_1111);
@@ -137,7 +145,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         rs2: u5,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = x[rs1] <s x[rs2]
             if (self.rd != 0) {
                 const rs1_signed: i64 = @bitCast(platform.registers[self.rs1]);
@@ -153,7 +162,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         rs2: u5,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = x[rs1] <u x[rs2]
             if (self.rd != 0) {
                 platform.registers[self.rd] = if (platform.registers[self.rs1] < platform.registers[self.rs2]) 1 else 0;
@@ -167,7 +177,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         imm: u12,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = x[rs1] + sext(immediate)
             if (self.rd != 0) {
                 const imm_extended = extend.sign_extend(u12, self.imm);
@@ -182,7 +193,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         imm: u12,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = x[rs1] ^ sext(immediate)
             if (self.rd != 0) {
                 const imm_extended = extend.sign_extend(u12, self.imm);
@@ -197,7 +209,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         imm: u12,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = x[rs1] | sext(immediate)
             if (self.rd != 0) {
                 const imm_extended = extend.sign_extend(u12, self.imm);
@@ -212,7 +225,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         imm: u12,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = x[rs1] & sext(immediate)
             if (self.rd != 0) {
                 const imm_extended = extend.sign_extend(u12, self.imm);
@@ -227,7 +241,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         shift_amt: u6,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = x[rs1] << shamt
             if (self.rd != 0) {
                 platform.registers[self.rd] = platform.registers[self.rs1] << self.shift_amt;
@@ -241,7 +256,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         shift_amt: u6,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = x[rs1] >>u shamt
             if (self.rd != 0) {
                 platform.registers[self.rd] = platform.registers[self.rs1] >> self.shift_amt;
@@ -255,7 +271,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         shift_amt: u6,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = x[rs1] >>s shamt
             if (self.rd != 0) {
                 const rs1_signed: i64 = @bitCast(platform.registers[self.rs1]);
@@ -270,7 +287,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         imm: u12,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = x[rs1] <s sext(immediate)
             if (self.rd != 0) {
                 const rs1_signed: i64 = @bitCast(platform.registers[self.rs1]);
@@ -287,7 +305,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         imm: u12,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = x[rs1] <u sext(immediate)
             if (self.rd != 0) {
                 const imm_extended = extend.sign_extend(u12, self.imm);
@@ -302,7 +321,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         imm: u12,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = sext(M[x[rs1] + sext(offset)][7:0])
             if (self.rd != 0) {
                 const imm_extended = extend.sign_extend(u12, self.imm);
@@ -320,7 +340,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         imm: u12,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = sext(M[x[rs1] + sext(offset)][15:0])
             if (self.rd != 0) {
                 const imm_extended = extend.sign_extend(u12, self.imm);
@@ -338,7 +359,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         imm: u12,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = sext(M[x[rs1] + sext(offset)][31:0])
             if (self.rd != 0) {
                 const imm_extended = extend.sign_extend(u12, self.imm);
@@ -355,7 +377,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         imm: u12,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = M[x[rs1] + sext(offset)][7:0]
             if (self.rd != 0) {
                 const imm_extended = extend.sign_extend(u12, self.imm);
@@ -372,7 +395,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         imm: u12,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = M[x[rs1] + sext(offset)][15:0]
             if (self.rd != 0) {
                 const imm_extended = extend.sign_extend(u12, self.imm);
@@ -391,7 +415,8 @@ pub const Instruction = union(enum) {
         rs2: u5,
         imm: u12,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // M[x[rs1] + sext(offset)] = x[rs2][7:0]
             const imm_extended = extend.sign_extend(u12, self.imm);
             const address = platform.registers[self.rs1] +% imm_extended;
@@ -406,7 +431,8 @@ pub const Instruction = union(enum) {
         rs2: u5,
         imm: u12,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // M[x[rs1] + sext(offset)] = x[rs2][15:0]
             const imm_extended = extend.sign_extend(u12, self.imm);
             const address = platform.registers[self.rs1] +% imm_extended;
@@ -421,7 +447,8 @@ pub const Instruction = union(enum) {
         rs2: u5,
         imm: u12,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // M[x[rs1] + sext(offset)] = x[rs2][31:0]
             const imm_extended = extend.sign_extend(u12, self.imm);
             const address = platform.registers[self.rs1] +% imm_extended;
@@ -438,7 +465,8 @@ pub const Instruction = union(enum) {
         rs2: u5,
         imm: u13,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // if (x[rs1] == x[rs2]) pc += sext(offset)
             if (platform.registers[self.rs1] == platform.registers[self.rs2]) {
                 const signed_offset: i13 = @bitCast(self.imm);
@@ -456,7 +484,8 @@ pub const Instruction = union(enum) {
         rs2: u5,
         imm: u13,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // if (x[rs1] != x[rs2]) pc += sext(offset)
             if (platform.registers[self.rs1] != platform.registers[self.rs2]) {
                 const signed_offset: i13 = @bitCast(self.imm);
@@ -473,7 +502,8 @@ pub const Instruction = union(enum) {
         rs2: u5,
         imm: u13,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // if (x[rs1] <s x[rs2]) pc += sext(offset)
             const rs1_signed: i64 = @bitCast(platform.registers[self.rs1]);
             const rs2_signed: i64 = @bitCast(platform.registers[self.rs2]);
@@ -492,7 +522,8 @@ pub const Instruction = union(enum) {
         rs2: u5,
         imm: u13,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // if (x[rs1] >=s x[rs2]) pc += sext(offset)
             const rs1_signed: i64 = @bitCast(platform.registers[self.rs1]);
             const rs2_signed: i64 = @bitCast(platform.registers[self.rs2]);
@@ -511,7 +542,8 @@ pub const Instruction = union(enum) {
         rs2: u5,
         imm: u13,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // if (x[rs1] <u x[rs2]) pc += sext(offset)
             if (platform.registers[self.rs1] < platform.registers[self.rs2]) {
                 const signed_offset: i13 = @bitCast(self.imm);
@@ -528,7 +560,8 @@ pub const Instruction = union(enum) {
         rs2: u5,
         imm: u13,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // if (x[rs1] >=u x[rs2]) pc += sext(offset)
             if (platform.registers[self.rs1] >= platform.registers[self.rs2]) {
                 const signed_offset: i13 = @bitCast(self.imm);
@@ -546,7 +579,8 @@ pub const Instruction = union(enum) {
         rd: u5,
         imm: u21,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = pc+4; pc += sext(offset)
             if (self.rd != 0) {
                 platform.registers[self.rd] = platform.program_counter + 4;
@@ -563,7 +597,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         imm: u12,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // t =pc+4; pc=(x[rs1]+sext(offset))&∼1; x[rd]=t
             const t = platform.program_counter + 4;
             const imm_extended = extend.sign_extend(u12, self.imm);
@@ -582,7 +617,8 @@ pub const Instruction = union(enum) {
         rd: u5,
         imm: u20,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = sext(immediate[31:12] << 12)
             if (self.rd != 0) {
                 const val_u32: u32 = @as(u32, self.imm) << 12;
@@ -597,7 +633,8 @@ pub const Instruction = union(enum) {
         rd: u5,
         imm: u20,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = pc + sext(immediate[31:12] << 12)
             if (self.rd != 0) {
                 const off_u32: u32 = @as(u32, self.imm) << 12;
@@ -614,7 +651,7 @@ pub const Instruction = union(enum) {
         rs1: u5,
         csr: u12,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
             // t = CSRs[csr]; CSRs[csr] = x[rs1]; x[rd] = t
             if (self.rd != 0) {
                 const old_csr = platform.csr.get(self.csr);
@@ -624,7 +661,7 @@ pub const Instruction = union(enum) {
                 platform.csr.set(platform, self.csr, platform.registers[self.rs1]);
             }
             platform.program_counter += 4;
-            try platform.csr.display();
+            try platform.csr.display(io);
         }
     },
 
@@ -633,7 +670,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         csr: u12,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // t = CSRs[csr]; CSRs[csr] = t | x[rs1]; x[rd] = t
             const old_csr = platform.csr.get(self.csr);
             if (self.rd != 0) {
@@ -651,7 +689,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         csr: u12,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // t = CSRs[csr]; CSRs[csr] = t &∼x[rs1]; x[rd] = t
             const old_csr = platform.csr.get(self.csr);
             if (self.rd != 0) {
@@ -669,7 +708,8 @@ pub const Instruction = union(enum) {
         uimm: u5,
         csr: u12,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = CSRs[csr]; CSRs[csr] = zimm
             const zimm: u64 = @intCast(self.uimm);
             if (self.rd != 0) {
@@ -688,7 +728,8 @@ pub const Instruction = union(enum) {
         uimm: u5,
         csr: u12,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // t = CSRs[csr]; CSRs[csr] = t | zimm; x[rd] = t
             const zimm: u64 = @intCast(self.uimm);
             const old_csr = platform.csr.get(self.csr);
@@ -707,7 +748,8 @@ pub const Instruction = union(enum) {
         uimm: u5,
         csr: u12,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // t = CSRs[csr]; CSRs[csr] = t &∼zimm; x[rd] = t
             const zimm: u64 = @intCast(self.uimm);
             const old_csr = platform.csr.get(self.csr);
@@ -724,17 +766,17 @@ pub const Instruction = union(enum) {
     // Environment Instructions (I-type, opcode 1110011)
 
     ecall: struct {
-        pub fn execute(self: @This(), platform: *Platform) !void {
-            // RaiseException(EnvironmentCall)
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
             _ = self;
+            _ = io;
             _ = platform;
         }
     },
 
     ebreak: struct {
-        pub fn execute(self: @This(), platform: *Platform) !void {
-            // RaiseException(Breakpoint)
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
             _ = self;
+            _ = io;
             _ = platform;
         }
     },
@@ -743,52 +785,52 @@ pub const Instruction = union(enum) {
         pred: u4,
         succ: u4,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
-            // Fence(pred, succ)
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
             _ = self;
+            _ = io;
             platform.program_counter += 4;
         }
     },
 
     fence_i: struct {
-        pub fn execute(self: @This(), platform: *Platform) !void {
-            // Fence(Store, Fetch)
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
             _ = self;
+            _ = io;
             platform.program_counter += 4;
         }
     },
 
     wfi: struct {
-        pub fn execute(self: @This(), platform: *Platform) !void {
-            // while (noInterruptsPending) idle
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
             _ = self;
+            _ = io;
             _ = platform;
             @panic("wfi instruction not implemented");
         }
     },
 
     mret: struct {
-        pub fn execute(self: @This(), platform: *Platform) !void {
-            // ExceptionReturn(Machine)
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
             _ = self;
+            _ = io;
             _ = platform;
             @panic("mret instruction not implemented");
         }
     },
 
     sret: struct {
-        pub fn execute(self: @This(), platform: *Platform) !void {
-            // ExceptionReturn(User)
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
             _ = self;
+            _ = io;
             _ = platform;
             @panic("sret instruction not implemented");
         }
     },
 
     uret: struct {
-        pub fn execute(self: @This(), platform: *Platform) !void {
-            // ExceptionReturn(User)
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
             _ = self;
+            _ = io;
             _ = platform;
             @panic("uret instruction not implemented");
         }
@@ -800,7 +842,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         imm: u12,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = sext((x[rs1] + sext(immediate))[31:0])
             if (self.rd != 0) {
                 const imm_signed: i64 = @as(i12, @bitCast(self.imm));
@@ -816,7 +859,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         shift_amt: u5,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = sext((x[rs1] << shamt)[31:0])
             if (self.rd != 0) {
                 const val_32: u32 = @truncate(platform.registers[self.rs1]);
@@ -832,7 +876,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         shift_amt: u5,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = sext(x[rs1][31:0] >>u shamt)
             if (self.rd != 0) {
                 const val_32: u32 = @truncate(platform.registers[self.rs1]);
@@ -848,7 +893,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         shift_amt: u5,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = sext(x[rs1][31:0] >>s shamt)
             if (self.rd != 0) {
                 const val_32: i32 = @bitCast(@as(u32, @truncate(platform.registers[self.rs1])));
@@ -863,7 +909,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         rs2: u5,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = sext((x[rs1] + x[rs2])[31:0])
             if (self.rd != 0) {
                 const val1_32: u32 = @truncate(platform.registers[self.rs1]);
@@ -880,7 +927,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         rs2: u5,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = sext((x[rs1] - x[rs2])[31:0])
             if (self.rd != 0) {
                 const val1_32: u32 = @truncate(platform.registers[self.rs1]);
@@ -897,7 +945,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         rs2: u5,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = sext((x[rs1] << x[rs2][4:0])[31:0])
             if (self.rd != 0) {
                 const val_32: u32 = @truncate(platform.registers[self.rs1]);
@@ -914,7 +963,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         rs2: u5,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = sext(x[rs1][31:0] >>u x[rs2][4:0])
             if (self.rd != 0) {
                 const val_32: u32 = @truncate(platform.registers[self.rs1]);
@@ -931,7 +981,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         rs2: u5,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = sext(x[rs1][31:0] >>s x[rs2][4:0])
             if (self.rd != 0) {
                 const val_32: i32 = @bitCast(@as(u32, @truncate(platform.registers[self.rs1])));
@@ -947,7 +998,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         imm: u12,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = M[x[rs1] + sext(offset)][31:0]
             if (self.rd != 0) {
                 const imm_extended = extend.sign_extend(u12, self.imm);
@@ -963,7 +1015,8 @@ pub const Instruction = union(enum) {
         rs1: u5,
         imm: u12,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // x[rd] = M[x[rs1] + sext(offset)][63:0]
             if (self.rd != 0) {
                 const imm_extended = extend.sign_extend(u12, self.imm);
@@ -979,7 +1032,8 @@ pub const Instruction = union(enum) {
         rs2: u5,
         imm: u12,
 
-        pub fn execute(self: @This(), platform: *Platform) !void {
+        pub fn execute(self: @This(), io: std.Io, platform: *Platform) !void {
+            _ = io;
             // M[x[rs1] + sext(offset)] = x[rs2][63:0]
             const imm_extended = extend.sign_extend(u12, self.imm);
             const address = platform.registers[self.rs1] +% imm_extended;

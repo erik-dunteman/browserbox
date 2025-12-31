@@ -2,6 +2,8 @@ const std = @import("std");
 
 pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
+    var threaded: std.Io.Threaded = .init_single_threaded;
+    const io = threaded.io();
 
     const wasm_exe = b.addExecutable(.{
         .name = "wasmutter",
@@ -38,9 +40,9 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&test_run_exe.step);
 
     // Generate RISC-V binaries for every file in asm/src/
-    const asm_src_dir = std.fs.cwd().openDir("asm/src", .{ .iterate = true }) catch @panic("Failed to open asm/src directory");
+    var asm_src_dir = std.Io.Dir.openDir(std.Io.Dir.cwd(), io, "asm/src", .{ .iterate = true }) catch @panic("Failed to open asm/src directory");
     var iter = asm_src_dir.iterate();
-    while (iter.next() catch @panic("Failed to iterate asm/src directory")) |entry| {
+    while (iter.next(io) catch @panic("Failed to iterate asm/src directory")) |entry| {
         if (entry.kind != .file) continue;
         const ext = std.fs.path.extension(entry.name);
         if (!std.mem.eql(u8, ext, ".zig")) continue;
@@ -53,7 +55,7 @@ pub fn build(b: *std.Build) void {
                 .target = b.resolveTargetQuery(.{
                     .cpu_arch = .riscv64,
                     .os_tag = .freestanding,
-                    .cpu_features_add = std.Target.riscv.featureSet(&.{.@"64bit"}),
+                    .cpu_model = .{ .explicit = &std.Target.riscv.cpu.generic_rv64 }, // required to skip .c features, not sure why
                     .cpu_features_sub = std.Target.riscv.featureSet(&.{ .c, .m, .a, .f, .d }), // disable compressed instructions (can add later)
                 }),
                 .optimize = .ReleaseSmall, // small binary
