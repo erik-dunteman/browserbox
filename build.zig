@@ -39,6 +39,8 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&test_run_exe.step);
 
+    const make_elf_dir = b.addSystemCommand(&.{ "mkdir", "-p", "asm/elf" });
+
     // Generate RISC-V binaries for every file in asm/src/
     var asm_src_dir = std.Io.Dir.openDir(std.Io.Dir.cwd(), io, "asm/src", .{ .iterate = true }) catch @panic("Failed to open asm/src directory");
     var iter = asm_src_dir.iterate();
@@ -66,6 +68,7 @@ pub fn build(b: *std.Build) void {
         const copy_elf = b.addSystemCommand(&.{ "cp", "-f" });
         copy_elf.addArtifactArg(riscv_exe);
         copy_elf.addArg(b.fmt("asm/elf/{s}.elf", .{basename}));
+        copy_elf.step.dependOn(&make_elf_dir.step);
 
         b.installArtifact(riscv_exe);
         b.getInstallStep().dependOn(&copy_elf.step);
