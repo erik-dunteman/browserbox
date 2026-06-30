@@ -10,17 +10,11 @@ test {
     _ = parser;
 }
 
-pub fn main() !void {
-    const allocator = comptime switch (builtin.target.cpu.arch) {
-        .wasm32 => std.heap.wasm_allocator,
-        .wasm64 => std.heap.wasm_allocator,
-        else => std.heap.page_allocator,
-    };
-    var threaded: std.Io.Threaded = .init_single_threaded;
-    const io = threaded.io();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.arena.allocator();
+    const io = init.io;
 
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
+    const args = try init.minimal.args.toSlice(allocator);
     if (args.len != 3) {
         try print(io, "Usage:\n\t--binary\tprogram.bin\n\t--elf\t\tprogram.elf\n", .{});
         return;
@@ -43,14 +37,14 @@ pub fn main() !void {
 
 test "test built elf files" {
     const io = std.testing.io;
-    const elf_dir = std.fs.cwd().openDir("asm/elf", .{ .iterate = true }) catch @panic("Failed to open asm/elf directory");
+    const elf_dir = std.Io.Dir.cwd().openDir(io, "asm/elf", .{ .iterate = true }) catch @panic("Failed to open asm/elf directory");
     var iter = elf_dir.iterate();
 
     const allocator = std.testing.allocator;
     var platform = try Platform.init(allocator, io);
     defer platform.deinit();
 
-    while (iter.next() catch @panic("Failed to iterate asm/elf directory")) |entry| {
+    while (iter.next(io) catch @panic("Failed to iterate asm/elf directory")) |entry| {
         if (entry.kind != .file) continue;
         const ext = std.fs.path.extension(entry.name);
         if (!std.mem.eql(u8, ext, ".elf")) continue;
