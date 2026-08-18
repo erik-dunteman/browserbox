@@ -10,47 +10,53 @@ test {
     _ = parser;
 }
 
-pub fn main() !void {
+pub fn main(init: std.process.Init.Minimal) !void {
     const allocator = comptime switch (builtin.target.cpu.arch) {
-        .wasm32 => std.heap.wasm_allocator,
-        .wasm64 => std.heap.wasm_allocator,
+        .wasm32, .wasm64 => std.heap.wasm_allocator,
         else => std.heap.page_allocator,
     };
     var threaded: std.Io.Threaded = .init_single_threaded;
     const io = threaded.io();
 
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
-    if (args.len != 3) {
-        try print(io, "Usage:\n\t--binary\tprogram.bin\n\t--elf\t\tprogram.elf\n", .{});
-        return;
-    }
+    var args_it = try std.process.Args.Iterator.initAllocator(init.args, allocator);
+    defer args_it.deinit();
+    _ = args_it.skip(); // program name
+
+    const mode = try allocator.dupe(u8, args_it.next() orelse return usage(io));
+    defer allocator.free(mode);
+    const path = try allocator.dupe(u8, args_it.next() orelse return usage(io));
+    defer allocator.free(path);
 
     var platform = try Platform.init(allocator, io);
     defer platform.deinit();
 
-    if (std.mem.eql(u8, args[1], "--binary")) {
-        try platform.load_program_from_binary(args[2]);
-    } else if (std.mem.eql(u8, args[1], "--elf")) {
-        try platform.load_program_from_elf(args[2]);
+    if (std.mem.eql(u8, mode, "--binary")) {
+        try platform.load_program_from_binary(path);
+    } else if (std.mem.eql(u8, mode, "--elf")) {
+        try platform.load_program_from_elf(path);
     } else {
-        try print(io, "Invalid argument: {s}\n", .{args[1]});
+        try print(io, "Invalid argument: {s}\n", .{mode});
         return;
     }
 
     try platform.run_program();
 }
 
+fn usage(io: std.Io) !void {
+    try print(io, "Usage:\n\t--binary\tprogram.bin\n\t--elf\t\tprogram.elf\n", .{});
+}
+
 test "test built elf files" {
     const io = std.testing.io;
-    const elf_dir = std.fs.cwd().openDir("asm/elf", .{ .iterate = true }) catch @panic("Failed to open asm/elf directory");
+    var elf_dir = std.Io.Dir.openDir(std.Io.Dir.cwd(), io, "asm/elf", .{ .iterate = true }) catch @panic("Failed to open asm/elf directory");
+    defer elf_dir.close(io);
     var iter = elf_dir.iterate();
 
     const allocator = std.testing.allocator;
     var platform = try Platform.init(allocator, io);
     defer platform.deinit();
 
-    while (iter.next() catch @panic("Failed to iterate asm/elf directory")) |entry| {
+    while (iter.next(io) catch @panic("Failed to iterate asm/elf directory")) |entry| {
         if (entry.kind != .file) continue;
         const ext = std.fs.path.extension(entry.name);
         if (!std.mem.eql(u8, ext, ".elf")) continue;

@@ -6,7 +6,7 @@ pub fn build(b: *std.Build) void {
     const io = threaded.io();
 
     const wasm_exe = b.addExecutable(.{
-        .name = "wasmutter",
+        .name = "browserbox",
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/main.zig"),
             .target = b.resolveTargetQuery(.{ .cpu_arch = .wasm32, .os_tag = .wasi }),
@@ -16,7 +16,7 @@ pub fn build(b: *std.Build) void {
     });
 
     const native_exe = b.addExecutable(.{
-        .name = "wasmutter",
+        .name = "browserbox",
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/main.zig"),
             .target = b.graph.host,
@@ -27,7 +27,7 @@ pub fn build(b: *std.Build) void {
 
     // native test
     const test_exe = b.addTest(.{
-        .name = "wasmutter_test",
+        .name = "browserbox_test",
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/main.zig"),
             .target = b.graph.host,
